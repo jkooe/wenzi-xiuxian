@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="3E2Soby70X7or9SHfsyasr">
+<head data-page-node-id="asrduvEvRAhYVqzftGG6bA">
+<meta charset="UTF-8" data-page-node-id="nOfsRvEx6et497uiuqLGIN">
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="EGBP6prHWfnXIN4woWrK83">
+<title>文字修仙 · 框架架构说明</title>
+<style>
+  :root{
+    --bg:#f7f8fb; --card:#ffffff; --line:#e4e7ec; --text:#1f2937;
+    --muted:#5b6472; --accent:#4f46e5; --accent-soft:#eef2ff;
+    --code-bg:#f3f4f6; --ok:#047857; --warn:#b45309;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+       line-height:1.7;font-size:15px}
+  header{background:linear-gradient(120deg,#4f46e5,#0ea5e9);color:#fff;padding:38px 32px 30px}
+  header h1{margin:0 0 6px;font-size:26px;letter-spacing:.5px}
+  header p{margin:0;opacity:.92;font-size:14px}
+  main{max-width:980px;margin:0 auto;padding:28px 20px 60px}
+  section{margin-bottom:30px}
+  h2{font-size:19px;margin:0 0 14px;padding-left:10px;border-left:4px solid var(--accent)}
+  h3{font-size:15px;margin:18px 0 8px;color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+  .mod{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .mod .name{font-weight:600;color:var(--accent);font-size:14px}
+  .mod .path{font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;margin:2px 0 6px}
+  .mod p{margin:0;font-size:13px;color:var(--text)}
+  table{width:100%;border-collapse:collapse;background:var(--card);
+        border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line)}
+  th{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--code-bg);padding:2px 6px;border-radius:5px;
+       font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;
+      padding:14px 16px;overflow-x:auto;font-size:12.5px;line-height:1.65;margin:0}
+  .layer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .layer .tag{width:74px;font-size:12px;color:var(--muted);text-align:right;flex:none}
+  .chip{background:var(--card);border:1px solid var(--line);border-radius:8px;
+        padding:7px 12px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace}
+  .chip.core{border-color:#c7d2fe;background:#eef2ff;color:#3730a3}
+  .chip.sys{border-color:#bbf7d0;background:#f0fdf4;color:#166534}
+  .arrow{text-align:center;color:var(--muted);font-size:13px;margin:2px 0 10px;letter-spacing:2px}
+  .flow{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap}
+  .step{flex:1;min-width:150px;background:var(--card);border:1px solid var(--line);
+        border-radius:10px;padding:12px 14px;position:relative}
+  .step b{display:block;color:var(--accent);font-size:13px;margin-bottom:4px}
+  .step span{font-size:12.5px;color:var(--muted)}
+  .steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+  .num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--accent);
+       color:#fff;align-items:center;justify-content:center;font-size:12px;margin-right:6px}
+  ul{margin:8px 0 0;padding-left:20px}
+  li{margin-bottom:6px;font-size:13.5px}
+  .note{font-size:12.5px;color:var(--muted);margin-top:10px}
+  .ok{color:var(--ok);font-weight:600}
+  footer{border-top:1px solid var(--line);margin-top:34px;padding-top:16px;
+         font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body data-page-node-id="HMoBcKq3RP0NDUP9OPozkE">
+<header data-page-node-id="zPEi8vLv7QeTFiniQUMw5k">
+  <h1 data-page-node-id="43CdigeZdAw8jbmFR6glhC">文字修仙 · 框架架构说明</h1>
+  <p data-page-node-id="7MJyQkwrRWH3cHNjYm2ikC">纯 Python 标准库 · 依赖单向 ui → systems → core → config · 玩法可插拔</p>
+</header>
+
+<main data-page-node-id="IZscv8iduaLXTgJ64p7mag">
+<section data-page-node-id="uEpieLVF4egkSBG4JmHzoe">
+  <h2 data-page-node-id="uM55eXOAYqaKQvIQX6OSSB">一、分层结构</h2>
+  <div class="card" data-page-node-id="niGhdf0xuRFiuj0GY7F14R">
+    <div class="layer" data-page-node-id="bPld9Q21CJiUWsoiMXGc90"><span class="tag" data-page-node-id="BWs1xEW7FVC1MYLYcdz3Du">表现层</span>
+      <span class="chip" data-page-node-id="cMQ7Fyi1y3Fih0kCE804QK">ui/panel.py 渲染</span><span class="chip" data-page-node-id="POkqO0ug3Tx3nVYXgN0Cgm">ui/cli.py 命令循环</span></div>
+    <div class="arrow" data-page-node-id="SYHgI0sJFzlVCsWxHAOzcr">▼ 只读游戏状态，不含规则</div>
+    <div class="layer" data-page-node-id="4Go3Sdkxq6RInSpnssFMb9"><span class="tag" data-page-node-id="6ObK75mc1K2HmuroasstTn">玩法层</span>
+      <span class="chip sys" data-page-node-id="CuSDqHBzt2furcFCiVSJc4">systems/combat 斗法</span>
+      <span class="chip sys" data-page-node-id="9HNHhTjOno2HXlC7O31QHK">systems/tribulation 渡劫</span>
+      <span class="chip sys" data-page-node-id="yPEzX5JHCPu5iAptzxDBrT">systems/sect 门派</span>
+      <span class="chip sys" data-page-node-id="eq01">systems/equipment 装备</span>
+      <span class="chip sys" data-page-node-id="eq02">systems/arts 功法</span>
+      <span class="chip sys" data-page-node-id="eq03">systems/alchemy 丹道</span>
+      <span class="chip sys" data-page-node-id="eq04">systems/dungeon 秘境</span>
+      <span class="chip sys" data-page-node-id="q01">systems/quest 任务</span>
+      <span class="chip sys" data-page-node-id="q02">systems/market 坊市</span>
+      <span class="chip sys" data-page-node-id="sk01">systems/skill 技能</span></div>
+    <div class="arrow" data-page-node-id="KOjE8XyrAvrH3DiyPuY05G">▼ 订阅事件总线，注册命令与自定义效果</div>
+    <div class="layer" data-page-node-id="fypFx677OxVCEOUQxAgZ3x"><span class="tag" data-page-node-id="JPlM8gBLWamcfjbtmt8aI1">内核层</span>
+      <span class="chip core" data-page-node-id="0JFD1LyAXbPLGxx5yxMk2X">game 时间·编排</span><span class="chip core" data-page-node-id="YhIm3e47UEL6CXqMq3gKHz">cultivation 修炼突破</span>
+      <span class="chip core" data-page-node-id="ySX8c0ikIuRwaNXTUKhUTo">event 剧情</span><span class="chip core" data-page-node-id="J16spDWrskjOmrJk3lVuUd">inventory 背包</span>
+      <span class="chip core" data-page-node-id="5wNuPCoFl4F7AwyRP6NaVB">effects 效果</span><span class="chip core" data-page-node-id="bHOiVRwciAsKihFfQmGbRC">save 存档</span>
+      <span class="chip core" data-page-node-id="dFtjsvpDKud0rBvVnrTiDB">attributes 属性</span><span class="chip core" data-page-node-id="jnaWslNQyToQRqyAurvK71">cultivator 角色</span></div>
+    <div class="arrow" data-page-node-id="gOhRG7lkf2W2I1nrIyPzRp">▼ 只依赖数据定义</div>
+    <div class="layer" data-page-node-id="avcolHeFcCPNDSDMwkn1DK"><span class="tag" data-page-node-id="iQ1wzbCoGz2B5tcIFHLfOp">数据层</span>
+      <span class="chip" data-page-node-id="omToD2WlGYpnd5XGTbEgJZ">config/realms 境界</span><span class="chip" data-page-node-id="mH5AkFxeHCxLy8suuRR82N">config/items 物品</span>
+      <span class="chip" data-page-node-id="d01">config/arts 功法</span><span class="chip" data-page-node-id="d02">config/recipes 丹方</span>
+      <span class="chip" data-page-node-id="d03">config/dungeons 秘境</span>
+      <span class="chip" data-page-node-id="d04">config/skills 技能</span>
+      <span class="chip" data-page-node-id="mPOAZQiNjxd6XOyGLC2nKm">data/events.json 剧情</span></div>
+  </div>
+  <div class="note" data-page-node-id="BySXsSObeDqF1RGwRm45a2">内核不知道玩法系统的存在。装、卸玩法只改 <code data-page-node-id="Zr0Njg9tPabUuzLscffAF4">factory.default_systems()</code> 一行。</div>
+</section>
+
+<section data-page-node-id="Ng6Dg8pyxhmavQxKcGJiXC">
+  <h2 data-page-node-id="Yv7iqvKfbjBnCEga4Cdnmn">二、模块职责</h2>
+  <div class="grid" data-page-node-id="uV0no2WBta8J7HhOrOhals">
+    <div class="mod" data-page-node-id="dfjrR1A9P1pf0s6jeKi5DN"><div class="name" data-page-node-id="7iJdQN1NC7d3KSlVRZIG2V">境界体系</div><div class="path" data-page-node-id="GKyNUKID3ADc0hePjPhQMz">config/realms.py</div>
+      <p data-page-node-id="UdYLu0vY2EGwIr81IAnn6a">九个大境界、每层小境界、修为需求曲线、跨境界成功率、寿元、地点灵气浓度。</p></div>
+    <div class="mod" data-page-node-id="H9t7jz2Us52fCuxtADUn0a"><div class="name" data-page-node-id="7W1Z6T2z2ya6yH9Hz1e9Oj">属性面板</div><div class="path" data-page-node-id="bxO7KDYhZVg1fDDKMCoVwR">core/attributes.py</div>
+      <p data-page-node-id="ZLvADRCvu2dA8yU8jJHGbh">最终值 =(base + Σadd) × Πmul。装备、功法、丹药 buff、门派加成统一走 Modifier。</p></div>
+    <div class="mod" data-page-node-id="Bg5aM6PYRrTgWhSfyNEx29"><div class="name" data-page-node-id="F7qKGSZVEHmQE0b0V4Yoff">修士实体</div><div class="path" data-page-node-id="BjH35DokHKRqXUGvPiGFWD">core/cultivator.py</div>
+      <p data-page-node-id="dK52mBztCNA2q0mHDDpW6g">境界、修为、气血灵力精力、背包、状态标记。只存状态，不写规则。</p></div>
+    <div class="mod" data-page-node-id="s4MVyfA3yNhCIGDItDiBVC"><div class="name" data-page-node-id="CTSR6Ken6MQSz5t5I00bNk">修炼与突破</div><div class="path" data-page-node-id="3XHNEJyWbUGrAs1gE0Lb81">core/cultivation.py</div>
+      <p data-page-node-id="dMVIrBxe8OhPFGKx8yslD1">吐纳产修为、精力约束、顿悟；小境界与大境界两套突破判定，失败反噬。</p></div>
+    <div class="mod" data-page-node-id="KJ26DhWbpudBD3kDHMzsFN"><div class="name" data-page-node-id="qbUwvxj8QpLgLOW8kq0j96">效果执行器</div><div class="path" data-page-node-id="ITnVPmEPAw5VGYnjbv2tRG">core/effects.py</div>
+      <p data-page-node-id="EPEBXtra05rTvLlPAKT1N5">声明式 DSL，事件、丹药、掉落共用。支持注册自定义效果类型。</p></div>
+    <div class="mod" data-page-node-id="uzJRpBqqArbWyfgSgA0Ehy"><div class="name" data-page-node-id="KMcGHnuCx8Dj9InvWaO1xT">剧情事件</div><div class="path" data-page-node-id="akiLw0q08icPIm7Dd1Dr9F">core/event_system.py</div>
+      <p data-page-node-id="IHJ4qwJDQ8hX2IDpJk4iPV">按地点事件率抽事件，校验触发条件与选项前置，结算效果。</p></div>
+    <div class="mod" data-page-node-id="hxYnuoBCCF9re0TVNe7e1n"><div class="name" data-page-node-id="yKNKispIUY9ppfTyGMkS60">背包与丹药</div><div class="path" data-page-node-id="rN7fCZik3pvhpaBxCFToNG">core/inventory.py</div>
+      <p data-page-node-id="b0BnD4j31ERG89P22Q7GwW">物品增删查、服用、丹毒累积（丹毒越高药效越弱）。</p></div>
+    <div class="mod" data-page-node-id="BYacu9eIppRXTQ8OBDGXma"><div class="name" data-page-node-id="sqB7FOz8HhX6Nl8BcmKNDz">世界与编排</div><div class="path" data-page-node-id="Krku8fl3VnQJGQ5C7kcbNO">core/game.py</div>
+      <p data-page-node-id="YVGv37lf55Muyt0i3gxBEG">时间推进、跨日结算、寿元判定、系统装配、事件总线、命令聚合。</p></div>
+    <div class="mod" data-page-node-id="D0wRq04QkxzbGPMpxCURLB"><div class="name" data-page-node-id="Z18xSRcYGHFm1GQSCT52mm">存档读档</div><div class="path" data-page-node-id="lmcllE9TFbwzDYdUkILKyO">core/save.py</div>
+      <p data-page-node-id="os2h5pWOPDwknglOA4IXom">JSON + 版本号 + 迁移表 + 原子写入；RNG 状态一并持久化。</p></div>
+    <div class="mod" data-page-node-id="FbG1uPlzHj7UzHqigJa7Yv"><div class="name" data-page-node-id="Vw0msqayzfrfunJUyjkQI6">可插拔基类</div><div class="path" data-page-node-id="itozM2SBMBjz9iD1AVNzLg">core/base_system.py</div>
+      <p data-page-node-id="AARnjZ7UKgXvoHREc0HPoc">GameSystem + 事件总线 + Command 描述，是新玩法的接入契约。</p></div>
+  </div>
+</section>
+
+<section data-page-node-id="dMvAsci57WNOAE3Uek7plo">
+  <h2 data-page-node-id="zLCVAjarizPQCjOMr2YEee">三、核心循环</h2>
+  <div class="card" data-page-node-id="WYf6GmNU9lkgR5OXkL2A7Y">
+    <div class="flow" data-page-node-id="3vu07p53q40rCo2B8tqvGG">
+      <div class="step" data-page-node-id="rHmZDZahPQHgAax2nCOFjM"><b data-page-node-id="ahtwRGj4mgZxTymCxfj0bt">1 修炼</b><span data-page-node-id="dGNgddssSee25GeGkDhzFK">cultivate(h) → 修为增长，消耗精力，推进时间</span></div>
+      <div class="step" data-page-node-id="whk6nMONIEMAHZ9CJG2vJW"><b data-page-node-id="YfgXeXvfMWFCgS2tQQvSLm">2 突破</b><span data-page-node-id="SJ6YtE2FxmMfQ5iiKi50id">修为圆满 → 广播 → 掷骰 → 跃迁或反噬</span></div>
+      <div class="step" data-page-node-id="3yeaEdBaisrh98C0VYNjZl"><b data-page-node-id="7OCkgqn3Ht0Ctg9HkOoueA">3 机缘</b><span data-page-node-id="mY9XU1YmrTXXUFShkNDJvE">explore → 抽事件 → choose → 结算效果</span></div>
+      <div class="step" data-page-node-id="FC8AAJUxE9okeWItoH0m7I"><b data-page-node-id="mz7iu7ps8vQEYrEe3eDMao">4 斗法</b><span data-page-node-id="x5W1psIClF8sEcU8BJoaEe">事件或 hunt 触发 → 回合制 → 掉落与贡献</span></div>
+      <div class="step" data-page-node-id="naLX4lwm6oPa8iYUPnyRr2"><b data-page-node-id="hZll7M3OaEHlz7q39hIyqs">5 沉淀</b><span data-page-node-id="ATWIfFCsrdPgnts8Benjqq">rest 恢复、嗑药、save 存档</span></div>
+    </div>
+    <div class="note" data-page-node-id="h702HDOjVapEjn8sc4M6EA">突破是唯一的高风险节点：掷骰前广播 <code data-page-node-id="LAvYEYObF4LDTmS4sW7Pnk">before_breakthrough</code>，
+      丹药加成、天劫拦路、门派护法都在这里介入。</div>
+  </div>
+</section>
+
+<section data-page-node-id="E6fHN4hIp2eQz550fQ0N4d">
+  <h2 data-page-node-id="uwKQRHO4xLyyV6UVnDGF5g">四、关键接口</h2>
+  <pre data-page-node-id="WHtDQWHi0P8U34uYqDahht"># 开新档 / 读档
+game = create_game(name="李青玄", seed=42)
+game = load_game(slot=1)
+
+# 修炼与突破
+cult = game.system("cultivation")
+cult.cultivate(4)          # 吐纳 4 小时
+cult.breakthrough()        # 冲击下一境界
+cult.success_rate(is_major=True)   # 只读推演成功率
+
+# 事件
+ev = game.system("event")
+ev.trigger(force=True)     # 外出探查（force 强制触发）
+ev.choose(1)               # 选择第 1 个选项
+
+# 效果 DSL（事件 JSON 与物品表通用）
+{"type": "exp",  "value": 260}
+{"type": "attr", "key": "physique", "value": 2}
+{"type": "item", "id": "spirit_water", "count": 1}
+{"type": "buff", "id": "spring", "name": "灵泉洗髓", "hours": 96,
+ "mul": {"comprehension": 1.15}}
+{"type": "battle", "tier": "normal"}     # 战斗系统注册的自定义效果
+
+# 时间、世界、存档
+game.advance_time(6)                 # 推进 6 小时，跨日自动结算
+game.travel("落云山脉")
+SaveManager().save(game, slot=1)</pre>
+</section>
+
+<section data-page-node-id="uvwdG54ISvafxpIPb4yMHs">
+  <h2 data-page-node-id="L6tCPZQGpE2UWI1sgz7oqn">五、事件总线（扩展的主入口）</h2>
+  <table data-page-node-id="tQ5UGNUnD6j8Yp9Mg91t1e">
+    <tr data-page-node-id="8YIDy8Pvjj1N0usBsA6Cj5"><th style="width:210px" data-page-node-id="1AcEwAaMDZpuKw8GhST5Nw">主题</th><th data-page-node-id="oogwlsdSaMLO4XEAH7FVH4">时机</th><th style="width:250px" data-page-node-id="SWM1CNYcMPmFUXARnFGUHn">可被修改的字段</th></tr>
+    <tr data-page-node-id="j0bV94CrH8yFPG0ruZhbMh"><td data-page-node-id="0d4oFrbx6MBHzBF5zIkdFH"><code data-page-node-id="zjGPKrRuSWul8ZtzYKLQAy">before_breakthrough</code></td><td data-page-node-id="Qy6bDCBBZhg6MjL8fqSKeH">突破掷骰前</td><td data-page-node-id="FCahLiny2rGAEbezvDbI5j">bonus 成功率加成 / blocked 拦截 / logs</td></tr>
+    <tr data-page-node-id="NuaGcFoZy5Dxdz8gL11f3Y"><td data-page-node-id="6WbxN69R4wgVzAnBfgJnJZ"><code data-page-node-id="LMolkOS2nA3RScgjPCLMoy">after_breakthrough</code></td><td data-page-node-id="Jw4ahdLwhFMzR6GSsDb8a6">突破结算后</td><td data-page-node-id="xJgHeBXzd1yxMufEjT4iAY">—</td></tr>
+    <tr data-page-node-id="elaYC7f9iYGIrIJOJE7CJD"><td data-page-node-id="2SwBxOzQcu6lAYaMi4Cy3x"><code data-page-node-id="Y7GH3E7ZQnuJ7liSMsydg9">day_end</code></td><td data-page-node-id="AlZWkLYFtnGnM2PB1rgIC9">每日跨日</td><td data-page-node-id="CbeDNWFk65KS5IFPcY08az">—</td></tr>
+    <tr data-page-node-id="GXVximDHBAzDgrrbvnK0dr"><td data-page-node-id="h3VM1a7QSNFkIQlCezwfuF"><code data-page-node-id="ipa3DRBYExNfMfC5NQ6Czr">hour_passed</code></td><td data-page-node-id="q6vv64ilAT3uLpnIwTFid5">每次时间推进</td><td data-page-node-id="bSVLiZkQJA1rDXg33dQyBM">—</td></tr>
+    <tr data-page-node-id="ozDk6DkHdq13p8URuzQMWf"><td data-page-node-id="PWoGn6J0w8aDlwU7z4iqVQ"><code data-page-node-id="3MSCnCKsisxqdtCmAnir0Z">event_resolved</code></td><td data-page-node-id="ffgLgiTX8BqvgFWMDL4f6w">事件选项结算后</td><td data-page-node-id="JdzYDC1UkD7Tnac8rVr47W">—</td></tr>
+    <tr data-page-node-id="IADT8kvoK2Vgns04XrZ4E7"><td data-page-node-id="F946nHQmlF2kDICZkw275C"><code data-page-node-id="bwFfypPM6licy0OoBLCtnm">combat_victory</code></td><td data-page-node-id="obVOYpLXfyMceEBKL6nAku">战斗胜利</td><td data-page-node-id="Psan4Q1d8j4F4yWjus23e7">—</td></tr>
+    <tr data-page-node-id="sSWSQdevb0eiQC9M75yfYh"><td data-page-node-id="QqR7G9JH1wkaqRUPo55W4K"><code data-page-node-id="n4XcGMKc3gdClWugPb7DnY">new_game</code> / <code data-page-node-id="dnTEnIWQ0MmN69P53TfpkY">loaded</code></td><td data-page-node-id="5PoLvcHdMbrddyvZ3HCNf9">开档 / 读档完成</td><td data-page-node-id="H9po6sUxyVFjDM5DEJJa99">—</td></tr>
+  </table>
+</section>
+
+<section data-page-node-id="Qcy2HjSk0JXQS5M4qHiFa6">
+  <h2 data-page-node-id="w6X6zQC724PvpTz586mgG4">六、新增一个玩法系统的五步</h2>
+  <div class="card steps" data-page-node-id="clhK8HkxJHdyQXAqVUSV6W">
+    <div class="mod" data-page-node-id="8xxHdsMr689Dq3YD6NmnuH"><span class="num" data-page-node-id="G6ZZoMZ5CQobl0wpwma4wS">1</span>继承 <code data-page-node-id="1HSxrnhCvkYCOKQsSDqQfx">GameSystem</code>，定义 <code data-page-node-id="EL8m56KWscMTwjjl1bBWOD">id</code> 与 <code data-page-node-id="sakXsFBQ1T3Y7pFOPAcvOa">name</code></div>
+    <div class="mod" data-page-node-id="a5q3VOstEVvztn7jUkuvMp"><span class="num" data-page-node-id="2qjsRaECkTm3d8viYgNzVb">2</span>在 <code data-page-node-id="MVla5vDSdC0u9AgCB8issJ">on_bind()</code> 里订阅关心的主题</div>
+    <div class="mod" data-page-node-id="KR6s8RgzvId9A4jAC02JVT"><span class="num" data-page-node-id="85SnDlBtJaszQyapisNQ88">3</span>实现 <code data-page-node-id="sgtwWxVtPUYHywM4uKw2WE">commands()</code> 暴露玩家命令</div>
+    <div class="mod" data-page-node-id="7scSkBEiAOX7wn5GuGXlFP"><span class="num" data-page-node-id="Z7aSVUgNA8COfsnH05uTtu">4</span>实现 <code data-page-node-id="vGF2oD06jrBxqFEjoFmAJ9">to_dict()</code> / <code data-page-node-id="NUn2jqm9aAd1pxYWq1nnMO">load_state()</code> 做持久化</div>
+    <div class="mod" data-page-node-id="pmiHisqDDEtCxKnCeId97G"><span class="num" data-page-node-id="fUwPJuXpzJUDcbF39Lo8Op">5</span>在 <code data-page-node-id="8PWqtr2qja50mDDJ2BXMPc">factory.default_systems()</code> 加一行</div>
+  </div>
+  <div class="note" data-page-node-id="0rGdEhD5ZcObwvaCkmuP5d">加剧情只改 <code data-page-node-id="zACv2xCsT9NJGn2G5CGnM3">data/events.json</code>；加境界只改 <code data-page-node-id="h6wpcWw6HZytChjosnplg7">config/realms.py</code>；
+    加物品只改 <code data-page-node-id="Wbb6T1sCVZOw5spx1ciVhO">config/items.py</code>——都不需要动代码。</div>
+</section>
+
+<section data-page-node-id="7LsuBfl4kY7PphqUBSOLQE">
+  <h2 data-page-node-id="vj4B7CdMvdd8lu0BoexeGi">七、验证结果</h2>
+  <div class="card" data-page-node-id="MB6sRpQRh0BfcAdJx4PvkI">
+    <ul data-page-node-id="H7Nox1CfCqxVtJ0dSv5yYE">
+      <li data-page-node-id="ZQDRh8f1NCQwV9JcIFCUCF"><code data-page-node-id="8X64VuoWVXHkCKHzkWgGDA">demo.py</code>（seed=42）跑通 修炼 → 突破 → 事件 → 斗法 → 炼丹 → 秘境 → 存档 → 读档一致性校验：<span class="ok" data-page-node-id="Z1IGZMrs2EETVN75L7qaNc">通过</span></li>
+      <li data-page-node-id="TSAhAb5YY0o9N5YtI0XQzX">内核回归测试 118 项（含品阶 7 项、丹道 13 项、秘境 19 项、任务 9 项、坊市 8 项、技能 18 项）：<span class="ok" data-page-node-id="yIngJC3t8jEWCmUuSGH0Ni">全部通过</span></li>
+      <li data-page-node-id="AZAZDCsWODoNF9sHk2v1wo">长线推演（seed=2026，400 日）：第 277 日渡劫后期，开炉 680 次成丹率 92%，七张丹方买齐</li>
+      <li data-page-node-id="gshvz98Em78Vk7ROdCZ9QI">交互模式全命令冒烟：travel / explore / choose / hunt / sect / dan / save / load：<span class="ok" data-page-node-id="hB3REo1dCEBN16UQoOzOCF">通过</span></li>
+    </ul>
+  </div>
+</section>
+
+<footer data-page-node-id="DFOADEYp2P27zvS5yUhqze">文字修仙框架 v0.1 · 运行 <code data-page-node-id="qHlaoLCrVXsysRd1mhZQvi">python demo.py</code> 查看核心循环演示</footer>
+</main>
+</body>
+</html>

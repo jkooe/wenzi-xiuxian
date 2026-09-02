@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+saves/*.json
+.DS_Store
+.venv/
+
+# 会话/工具目录
+.workbuddy/
+# pytest 缓存
+.pytest_cache/
+# 本地数据工作区
+data/_tmp/

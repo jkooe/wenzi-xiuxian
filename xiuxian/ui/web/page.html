@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>文字修仙</title>
+<!-- 设计令牌 + 组件样式（web_server 服务端加载后内嵌，零外部请求） -->
+<style>
+/*TOKENS_CSS*/
+</style>
+<style>
+/*APP_CSS*/
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>文 字 修 仙</h1>
+  <p>挂机养老 · 法无止境 · 仙是修不完的</p>
+</header>
+<main class="page-main">
+  <div class="page-left">
+    <div class="card"><div id="status">载入中…</div></div>
+    <div class="card card-actions">
+      <div class="card-title">行 动</div>
+      <div class="actions" id="actions"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">行 修</div>
+      <div class="inputrow">
+        <input id="cmd" class="text-input" placeholder="输入指令，如 idle / hunt" autocomplete="off">
+        <button class="btn-send" id="send">行</button>
+      </div>
+      <p class="hint">点按钮或输入指令 · 页面每 30 秒自动结算挂机收益 · 离线收益读档时结算</p>
+    </div>
+  </div>
+  <div class="page-right">
+    <div class="flow-card">
+      <div class="card-title">历 程 · 文 字 流</div>
+      <div class="card-sub">修行经历按发生顺序逐条呈现 · 斜体为过程 · 金色为结果</div>
+      <div id="log"><span class="tline sys"><span class="ts"></span><span class="cmd"></span><span class="txt">—— 仙途启程 ——</span></span></div>
+    </div>
+  </div>
+</main>
+<!-- 移动端底部固定行动条（<768px 显示，桌面隐藏） -->
+<nav class="bottom-actions" id="actions-bottom" aria-label="快捷行动"></nav>
+<!-- 模态框容器（按需显示） -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">标题</div>
+      <button class="modal-close" id="modal-close" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body" id="modal-body">内容</div>
+    <div class="modal-footer" id="modal-footer">
+      <button class="btn" id="modal-cancel">取消</button>
+      <button class="btn primary" id="modal-confirm">确定</button>
+    </div>
+  </div>
+</div>
+<script>
+/*APP_JS*/
+</script>
+</body>
+</html>

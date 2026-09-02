@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文字修仙 · 第二十五批仙界内容填坑复盘</title>
+<style>
+  :root {
+    --bg-0: #0e0f17; --bg-1: #161828; --bg-2: #1e2138;
+    --txt: #e8e6f0; --muted: #9a97ad; --line: #2c2f4d;
+    --gold: #d4a95c; --purple: #8b6fd8; --red: #c96a6a; --green: #6fae8c;
+    --blue: #6f8fd8; --card: #1b1d30;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, var(--bg-0), var(--bg-1) 60%, var(--bg-0));
+    color: var(--txt); line-height: 1.7; padding: 0 0 60px; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+  header { text-align: center; padding: 54px 20px 36px;
+    background: radial-gradient(ellipse at top, rgba(212,169,92,.16), transparent 60%),
+                linear-gradient(180deg, var(--bg-1), var(--bg-0));
+    border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 30px; letter-spacing: 2px; color: var(--gold); font-weight: 700; }
+  header p { color: var(--muted); margin-top: 10px; font-size: 14px; }
+  header .sub { margin-top: 18px; display: inline-block; padding: 6px 18px;
+    border: 1px solid var(--gold); border-radius: 20px; color: var(--gold); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px; margin: 34px 0; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; text-align: center; }
+  .kpi .num { font-size: 30px; font-weight: 700; color: var(--gold); }
+  .kpi .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  h2 { font-size: 20px; color: var(--purple); margin: 38px 0 6px;
+    padding-left: 12px; border-left: 3px solid var(--purple); }
+  h2 .en { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 8px; }
+  p.desc { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+  th { background: var(--bg-2); color: var(--gold); padding: 9px 10px; text-align: left;
+    font-weight: 600; border: 1px solid var(--line); }
+  td { padding: 8px 10px; border: 1px solid var(--line); color: var(--txt); vertical-align: top; }
+  tr:nth-child(even) td { background: rgba(30,33,56,.5); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 11px; margin-right: 4px; }
+  .tag.ok { background: rgba(111,174,140,.16); color: var(--green); }
+  .tag.warn { background: rgba(201,106,106,.16); color: var(--red); }
+  .tag.info { background: rgba(111,143,216,.16); color: var(--blue); }
+  .callout { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--green);
+    border-radius: 8px; padding: 14px 16px; margin: 16px 0; font-size: 13px; }
+  .callout.red { border-left-color: var(--red); }
+  .callout b { color: var(--gold); }
+  ul { margin: 10px 0 10px 20px; font-size: 13px; color: var(--txt); }
+  li { margin: 4px 0; }
+  code { background: var(--bg-2); padding: 1px 6px; border-radius: 4px; color: var(--gold);
+    font-size: 12px; font-family: "SF Mono", Menlo, monospace; }
+  .mono { font-family: "SF Mono", Menlo, monospace; font-size: 12px; }
+  .flow { background: var(--bg-2); border-radius: 10px; padding: 18px 20px; font-family: "SF Mono", monospace;
+    font-size: 12px; color: var(--muted); line-height: 2; }
+  .flow b { color: var(--gold); }
+  footer { text-align: center; margin-top: 46px; padding-top: 20px;
+    border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>文字修仙 · 仙界内容填坑</h1>
+  <p>第二十五批实施复盘 —— 凡九 + 仙九 十八境的最后一块空白补齐</p>
+  <div class="sub">数据驱动 · 零核心数值改动 · 262 项测试全绿</div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <div class="kpi"><div class="num">262</div><div class="lbl">测试全过（+11）</div></div>
+    <div class="kpi"><div class="num">2 座</div><div class="lbl">仙界秘境</div></div>
+    <div class="kpi"><div class="num">4 门</div><div class="lbl">仙阶功法</div></div>
+    <div class="kpi"><div class="num">2 处</div><div class="lbl">仙界地点</div></div>
+    <div class="kpi"><div class="num">2 枚</div><div class="lbl">仙阶丹药</div></div>
+    <div class="kpi"><div class="num">6 件</div><div class="lbl">仙阶装备</div></div>
+  </div>
+
+  <h2>一、背景 <span class="en">为什么是仙界</span></h2>
+  <p class="desc">凡界 24 批打磨得满满当当，而仙界九境是「数值衔接但内容空白」的断层：境界、神通、铭文、劫名数据驱动齐全，唯独缺配套——仙人飞升后，掉进一片 <b>有境界无内容</b> 的空地。</p>
+  <div class="flow">
+    <b>飞升前（凡界）</b>：炼气→渡劫，功法/秘境/丹药/装备/门派/道侣/产业 全都有<br>
+    <b>飞升后（仙界）</b>：九境能爬，但 <b style="color:var(--red)">秘境=0 · 仙阶功法=0 · 仙界地点=0 · 仙阶丹药=0</b><br>
+    ── 这正是第 24 批「后续」挂着的候选，第 25 批轮到它。
+  </div>
+
+  <h2>二、落地清单 <span class="en">全部数据驱动</span></h2>
+  <table>
+    <tr><th>模块</th><th>内容</th><th>设计要点</th></tr>
+    <tr><td><b>仙界秘境</b></td><td>瑶池仙园（人仙,5层）<br>万劫云海（金仙,5层）</td><td class="tag ok">exp_ratio 修为</td><td>守关/宝箱修为全按当前境界需求比例，防仙界后期归零；灵石锚定入门境界一场战利量级</td></tr>
+    <tr><td><b>仙阶功法</b></td><td>太虚剑典(攻伐112点)<br>周天妙法(修炼260点)<br>破虚诀(突破80点)<br>混元一气诀(全能296点,太乙)</td><td class="tag ok">品阶预算</td><td>走已预留的「仙 480」预算，validate_balance 自检全绿；仙阶明显强于天阶</td></tr>
+    <tr><td><b>仙界地点</b></td><td>瑶池（灵气×4.5）<br>万劫云海（×6.0）</td><td class="tag info">min_realm 门槛</td><td>带境界门槛，飞升前 travel 被拦，防白嫖高灵气</td></tr>
+    <tr><td><b>仙界丹药</b></td><td>蕴仙丹（修为8%需求）<br>破境仙丹（突破+15pp~6pp跨9境）</td><td class="tag info">品阶派生</td><td>注册进 GRADED_PILLS 自动生成下品/上品变体</td></tr>
+    <tr><td><b>仙阶装备</b></td><td>六部位仙器</td><td class="tag info">境界筛选</td><td>min_realm=human_immortal，掉落池按境界自动筛（人仙/金仙6件，炼气0件）</td></tr>
+    <tr><td><b>仙阶丹方</b></td><td>蕴仙丹方(40%)<br>破境仙丹方(24%)</td><td class="tag info">材料闭环</td><td>走仙材（仙兽内丹/仙草），炼丹主线在仙界不断档</td></tr>
+  </table>
+
+  <h2>三、本批修的两个 bug <span class="en">值得入手册</span></h2>
+  <div class="callout red">
+    <b>Bug 1 · travel 读错配置源</b> — <code>game.travel()</code> 原用 <code>self.location_info()</code>（读的<b>当前所在地</b>）来取<b>目标地点</b>的信息 → 门槛判断 <code>min_realm</code> 永远读到旧地点的 None（不拦），密度也显示旧值。改为显式读 <code>LOCATIONS[location]</code>（目标地点）。
+  </div>
+  <div class="callout">
+    <b>Bug 2 · locations_panel KeyError</b> — <code>panel.locations_panel()</code> 原写 <code>info['danger']</code>，而 <code>LOCATIONS</code> 里的地点只有 <code>density/event_rate</code>（v2 凶险已取消，<b>没有 danger 键</b>）→ 一调用就 KeyError，只因从没被测试覆盖而潜伏。改 <code>.get('danger', 0)</code> 兜底 + 显示仙界门槛。
+  </div>
+
+  <h2>四、验证 <span class="en">数据 + 节奏 + 兼容</span></h2>
+  <ul>
+    <li><b>262 项测试全过</b>（原 251 + 11 项 <code>TestImmortalContent</code>：秘境存在/门槛/exp_ratio/通关奖励 + 功法预算/修习门槛 + 地点门槛 + 丹药品阶派生 + 装备掉落池）</li>
+    <li><b>品阶预算自检全绿</b>，demo 一致性通过（飞升到人仙链路）</li>
+    <li><b>仙界节奏模拟</b>（人仙起步纯挂机 seed=2026）：跨大境界约每 25~46 日、每小境界 6-11 日，无 inf/死循环，符合挂机养老长线定位</li>
+    <li><b>存档读档兼容</b>：秘境 <code>load_state</code> 按 <code>DUNGEONS</code> 白名单自动识别新增 id，老存档零侵入</li>
+    <li><b>端到端验证</b>：人仙秘境目录正确显示「瑶池可入 / 万劫需金仙」；人仙 travel 瑶池门槛通过、炼气被拦——Web 行动按钮自动继承数据驱动门槛</li>
+  </ul>
+
+  <h2>五、贯穿始终的设计铁律 <span class="en">本次严格遵守</span></h2>
+  <div class="callout">
+    <b>产出/消耗挂「本层需求比例」</b> —— 仙界秘境守关/宝箱、仙丹修为全用 <code>exp_ratio</code>，绝不写绝对值（凡界已踩过：固定值在渡劫期等于零）<br>
+    <b>百分比偏移相加</b> —— 仙阶功法 attr_mul 沿用量级叠加，防指数爆炸<br>
+    <b>品阶预算自检</b> —— 仙阶 480 是系统预留的位子，新增功法必须过 validate_balance<br>
+    <b>固定值随境界缩放</b> —— 仙阶装备固定值对齐人仙 atk_per_stage 量级，克制不膨胀
+  </div>
+
+  <h2>六、遗留与下一步 <span class="en">诚实标注</span></h2>
+  <ul>
+    <li><b>simulate_realms.py 既有缺陷</b>（非本次引入）——概率按最终状态快照导致同境重复行 + 层内升级重复记录，本次未动</li>
+    <li><b>凡界事件 events.json 仍用绝对 exp</b>（260/700），仙界入口已全 exp_ratio；凡界事件不在本次范围</li>
+    <li><b>下一片空白</b>：仙界法则系统 / 仙阶门派 / 仙界专属事件——仙界内容目前偏数值爬坡</li>
+  </ul>
+
+  <footer>
+    本报告为项目内部实施复盘，内容基于第二十五批（2026-09-02）实际落地代码，非投资建议。<br>
+    文字修仙 · 可扩展修仙文字游戏框架 · 挂机养老 · 法无止境
+  </footer>
+</div>
+</body>
+</html>

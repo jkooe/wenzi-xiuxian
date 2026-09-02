@@ -1,0 +1,476 @@
+{
+  "version": 1,
+  "events": [
+    {
+      "id": "spirit_spring",
+      "title": "灵泉现世",
+      "text": "山涧断崖下，一泓清泉泛着淡淡的乳白光晕，灵气扑面而来。",
+      "weight": 12,
+      "conditions": { "max_realm": "core", "location": ["青石镇", "落云山脉"], "where": "outdoor" },
+      "choices": [
+        {
+          "id": "drink",
+          "text": "掬水饮下",
+          "effects": [
+            { "type": "exp", "value": 260 },
+            { "type": "mp_ratio", "value": 0.6 },
+            { "type": "log", "text": "一股清凉直冲泥丸宫。" }
+          ]
+        },
+        {
+          "id": "bottle",
+          "text": "以玉瓶收取灵泉水",
+          "require": { "item": { "id": "jade_bottle", "count": 1 } },
+          "hint": "需玉瓶",
+          "effects": [
+            { "type": "item", "id": "jade_bottle", "count": 1, "action": "remove" },
+            { "type": "item", "id": "spirit_water", "count": 1 }
+          ]
+        },
+        {
+          "id": "sit",
+          "text": "就泉打坐三日",
+          "require": { "stamina": 40 },
+          "effects": [
+            { "type": "exp", "value": 700 },
+            { "type": "stamina", "value": -40 },
+            { "type": "buff", "id": "spring", "name": "灵泉洗髓", "hours": 96, "mul": { "comprehension": 1.15 } }
+          ]
+        },
+        { "id": "leave", "text": "记下方位，先行离开", "effects": [{ "type": "log", "text": "你默默记下此处坐标。" }] }
+      ]
+    },
+    {
+      "id": "beast_ambush",
+      "title": "妖兽袭扰",
+      "text": "林间腥风骤起，一头妖兽拦住去路，双目泛着红光。",
+      "weight": 14,
+      "conditions": { "location": ["落云山脉", "万兽深渊"], "where": "outdoor" },
+      "choices": [
+        {
+          "id": "fight",
+          "text": "拔剑迎战",
+          "effects": [{ "type": "battle", "tier": "normal" }]
+        },
+        {
+          "id": "flee",
+          "text": "御风而逃",
+          "effects": [
+            { "type": "stamina", "value": -25 },
+            { "type": "hp_ratio", "value": -0.1 },
+            { "type": "log", "text": "你狼狈退走，心中憋闷。" }
+          ]
+        },
+        {
+          "id": "bait",
+          "text": "丢出血食引开妖兽",
+          "require": { "item": { "id": "beast_blood", "count": 1 } },
+          "hint": "需妖兽精血",
+          "effects": [
+            { "type": "item", "id": "beast_blood", "count": 1, "action": "remove" },
+            { "type": "log", "text": "妖兽循血而去，你得以脱身。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wandering_trader",
+      "title": "散修交易",
+      "text": "一名灰袍散修蹲在路旁，摊上摆着几只瓷瓶。",
+      "weight": 12,
+      "conditions": { "location": ["青石镇", "宗门灵脉"], "where": "outdoor" },
+      "choices": [
+        {
+          "id": "buy_pill",
+          "text": "花 60 灵石买下聚气丹 ×3",
+          "require": { "stone": 60 },
+          "hint": "灵石不足",
+          "effects": [
+            { "type": "stone", "value": -60 },
+            { "type": "item", "id": "qi_gathering_pill", "count": 3 }
+          ]
+        },
+        {
+          "id": "buy_foundation",
+          "text": "花 900 灵石求购筑基丹",
+          "require": { "stone": 900 },
+          "hint": "灵石不足",
+          "effects": [
+            { "type": "stone", "value": -900 },
+            { "type": "item", "id": "foundation_pill", "count": 1 }
+          ]
+        },
+        {
+          "id": "sell_core",
+          "text": "卖出全部妖丹（每颗 300 灵石）",
+          "require": { "item": { "id": "beast_core", "count": 1 } },
+          "hint": "无妖丹可卖",
+          "effects": [
+            { "type": "item", "id": "beast_core", "count": 1, "action": "remove" },
+            { "type": "stone", "value": 300 }
+          ]
+        },
+        { "id": "ignore", "text": "视而不见", "effects": [] }
+      ]
+    },
+    {
+      "id": "ancient_cave",
+      "title": "古洞遗府",
+      "text": "藤蔓遮蔽的石壁上，隐约可见「遗府」二字，禁制早已残破。",
+      "weight": 8,
+      "conditions": { "location": ["落云山脉", "万兽深渊"], "where": "outdoor" },
+      "choices": [
+        {
+          "id": "enter",
+          "text": "破禁而入",
+          "require": { "stamina": 30 },
+          "effects": [
+            { "type": "stamina", "value": -30 },
+            { "type": "hp_ratio", "value": -0.18 },
+            { "type": "stone", "value": 400 },
+            { "type": "item", "id": "spirit_herb", "count": 2 },
+            { "type": "flag", "key": "found_legacy", "value": true },
+            { "type": "art", "id": "qingxin", "proficiency": 120 },
+            { "type": "log", "text": "残破玉简中记载着一门心法，你默记于心。" }
+          ]
+        },
+        {
+          "id": "probe",
+          "text": "先以神识探查",
+          "require": { "min_attr": { "spirit": 20 } },
+          "hint": "神识不足 20",
+          "effects": [
+            { "type": "exp", "value": 150 },
+            { "type": "item", "id": "spirit_herb", "count": 1 },
+            { "type": "log", "text": "你窥得洞中一角，谨慎取走些许灵草。" }
+          ]
+        },
+        { "id": "retreat", "text": "退去", "effects": [{ "type": "log", "text": "机缘与风险并存，你选择稳妥。" }] }
+      ]
+    },
+    {
+      "id": "fallen_cultivator",
+      "title": "路旁遗骸",
+      "text": "一具枯骨倚坐岩下，衣衫早已朽烂，身侧散落着几件器物。",
+      "weight": 9,
+      "conditions": { "location": ["落云山脉", "万兽深渊"], "where": "outdoor" },
+      "choices": [
+        {
+          "id": "search",
+          "text": "翻检遗物",
+          "require": { "stamina": 15 },
+          "hint": "精力不足",
+          "effects": [
+            { "type": "stamina", "value": -15 },
+            { "type": "item", "id": "qingfeng_sword", "count": 1 },
+            { "type": "stone", "value": 120 },
+            { "type": "log", "text": "一柄青锋剑仍泛寒光，另有散碎灵石。" }
+          ]
+        },
+        {
+          "id": "bury",
+          "text": "掘土掩埋，只取一枚玉佩",
+          "effects": [
+            { "type": "attr", "key": "luck", "value": 1 },
+            { "type": "item", "id": "jade_pendant", "count": 1 },
+            { "type": "log", "text": "入土为安。你心下稍安，气运似有增益。" }
+          ]
+        },
+        { "id": "leave", "text": "不去惊动亡者", "effects": [] }
+      ]
+    },
+    {
+      "id": "art_legacy",
+      "title": "残卷传承",
+      "text": "一卷焦黑的残篇自石匣中滑落，字迹斑驳，却自有一股韵律。",
+      "weight": 7,
+      "conditions": { "location": ["落云山脉", "万兽深渊", "宗门灵脉"], "where": "outdoor" },
+      "choices": [
+        {
+          "id": "study",
+          "text": "就地参悟（消耗 25 精力）",
+          "require": { "stamina": 25 },
+          "hint": "精力不足",
+          "effects": [
+            { "type": "stamina", "value": -25 },
+            { "type": "exp", "value": 220 },
+            { "type": "art", "id": "qingxin", "proficiency": 200 },
+            { "type": "log", "text": "残篇之意与你所学隐隐相合。" }
+          ]
+        },
+        {
+          "id": "skim",
+          "text": "匆匆一瞥，记个大概",
+          "effects": [
+            { "type": "art", "id": "qingxin", "proficiency": 60 },
+            { "type": "log", "text": "你只记下只言片语，聊胜于无。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "alchemy_legacy",
+      "title": "丹房遗册",
+      "text": "半塌的石屋内尚存药香，案上摊着一册焦边手记，墙角那尊紫砂药鼎居然完好无损。",
+      "weight": 7,
+      "conditions": { "location": ["落云山脉", "万兽深渊", "宗门灵脉"], "where": "outdoor" },
+      "choices": [
+        {
+          "id": "study",
+          "text": "就地参悟手记（消耗 25 精力）",
+          "require": { "stamina": 25 },
+          "hint": "精力不足",
+          "effects": [
+            { "type": "stamina", "value": -25 },
+            { "type": "recipe", "id": "cleansing_pill" },
+            { "type": "item", "id": "spirit_herb", "count": 2 },
+            { "type": "exp", "value": 200 },
+            { "type": "log", "text": "前人手记字迹潦草，却把火候写得极细。" }
+          ]
+        },
+        {
+          "id": "furnace",
+          "text": "费力搬走那尊药鼎（消耗 30 精力）",
+          "require": { "stamina": 30 },
+          "hint": "精力不足",
+          "effects": [
+            { "type": "stamina", "value": -30 },
+            { "type": "item", "id": "clay_cauldron", "count": 1 },
+            { "type": "log", "text": "药鼎入手沉甸甸的，炼丹之机当增几分。" }
+          ]
+        },
+        {
+          "id": "herbs",
+          "text": "只把药圃里的灵草采光",
+          "effects": [
+            { "type": "item", "id": "spirit_herb", "count": 4 },
+            { "type": "exp", "value": 60 },
+            { "type": "log", "text": "你割了大半药草，手记仍摊在案上。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "thunder_field",
+      "title": "雷泽淬体",
+      "text": "乌云压顶，荒原上电蛇乱窜，空气中弥漫着焦糊味。",
+      "weight": 6,
+      "conditions": { "min_realm": "qi_refining", "location": ["万兽深渊"], "where": "outdoor" },
+      "choices": [
+        {
+          "id": "endure",
+          "text": "入雷泽淬炼肉身",
+          "effects": [
+            { "type": "hp_ratio", "value": -0.45 },
+            { "type": "attr", "key": "physique", "value": 2 },
+            { "type": "exp", "value": 500 },
+            { "type": "log", "text": "皮开肉绽之后，筋骨竟坚实了几分。" }
+          ]
+        },
+        {
+          "id": "harvest",
+          "text": "趁雷击间隙采集灵草",
+          "effects": [{ "type": "item", "id": "spirit_herb", "count": 3 }, { "type": "exp", "value": 120 }]
+        },
+        { "id": "leave", "text": "远离是非之地", "effects": [] }
+      ]
+    },
+    {
+      "id": "beggar_elder",
+      "title": "邋遢老者",
+      "text": "镇口蜷着一名邋遢老者，伸手向你讨要灵石，眼神却异常清明。",
+      "weight": 9,
+      "conditions": { "location": ["青石镇"], "where": "outdoor" },
+      "once": true,
+      "choices": [
+        {
+          "id": "give",
+          "text": "施舍 50 灵石",
+          "require": { "stone": 50 },
+          "hint": "灵石不足",
+          "effects": [
+            { "type": "stone", "value": -50 },
+            { "type": "attr", "key": "luck", "value": 3 },
+            { "type": "item", "id": "enlighten_pill", "count": 1 },
+            { "type": "flag", "key": "helped_elder", "value": true },
+            { "type": "log", "text": "老者嘿嘿一笑，塞给你一枚丹药，转身不见。" }
+          ]
+        },
+        {
+          "id": "refuse",
+          "text": "拂袖而去",
+          "effects": [
+            { "type": "attr", "key": "luck", "value": -1 },
+            { "type": "log", "text": "老者望着你的背影，摇了摇头。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sect_recruit",
+      "title": "宗门招徒",
+      "text": "青云宗开山收徒，山门前人头攒动，执事高声唱名。",
+      "weight": 10,
+      "conditions": { "min_realm": "qi_refining", "location": ["青石镇", "宗门灵脉"], "not_flags": { "sect": true }, "where": "outdoor" },
+      "choices": [
+        {
+          "id": "signup",
+          "text": "报名入门（需炼气三层以上）",
+          "require": { "min_realm": "qi_refining" },
+          "effects": [
+            { "type": "flag", "key": "sect_invited", "value": true },
+            { "type": "log", "text": "执事递来一枚玉牌：青云宗外门弟子。可用 sect join 青云宗 正式入门。" }
+          ]
+        },
+        { "id": "watch", "text": "旁观一番", "effects": [{ "type": "exp", "value": 80 }] }
+      ]
+    },
+    {
+      "id": "qi_deviation",
+      "title": "真气逆行",
+      "text": "丹田内真气忽然乱窜，经脉阵阵刺痛，这是走火入魔的前兆。",
+      "weight": 16,
+      "conditions": { "max_hp_ratio": 0.6 },
+      "choices": [
+        {
+          "id": "suppress",
+          "text": "强行压制（消耗 30 灵力）",
+          "require": { "mp": 30 },
+          "effects": [
+            { "type": "mp", "value": -30 },
+            { "type": "hp_ratio", "value": -0.05 },
+            { "type": "log", "text": "你咬牙稳住心神，真气缓缓归位。" }
+          ]
+        },
+        {
+          "id": "endure",
+          "text": "硬抗过去",
+          "effects": [
+            { "type": "hp_ratio", "value": -0.25 },
+            { "type": "exp", "value": 200 },
+            { "type": "log", "text": "痛入骨髓，却也冲开了几处淤塞。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "quiet_day",
+      "title": "风平浪静",
+      "text": "云卷云舒，山中无事。你独坐崖边，看日出日落。",
+      "weight": 4,
+      "conditions": {},
+      "choices": [
+        {
+          "id": "think",
+          "text": "静心体悟天道",
+          "effects": [{ "type": "exp", "value": 100 }, { "type": "mp_ratio", "value": 0.4 }]
+        }
+      ]
+    },
+    {
+      "id": "dungeon_stele",
+      "title": "无字石碑",
+      "text": "一截断碑横在道旁，碑面光滑如镜，偏偏好似映不出你的影子。指尖触上去，碑中传来一句问话：『你所求者何物？』",
+      "weight": 10,
+      "conditions": { "where": "dungeon" },
+      "choices": [
+        {
+          "id": "power",
+          "text": "答『力量』",
+          "effects": [
+            { "type": "buff", "id": "stele_atk", "name": "碑力加身", "hours": 48, "add": { "atk": 5 } },
+            { "type": "poison", "value": 3 },
+            { "type": "log", "text": "碑身一震，一股蛮力灌入四肢，丹田却隐隐作痛。" }
+          ]
+        },
+        {
+          "id": "dao",
+          "text": "答『大道』",
+          "require": { "min_attr": { "comprehension": 12 } },
+          "hint": "悟性 12 以上",
+          "effects": [
+            { "type": "exp_ratio", "value": 0.30 },
+            { "type": "attr", "key": "comprehension", "value": 1 },
+            { "type": "log", "text": "碑上浮起两个古字，转眼又散了——你却觉得自己想明白了些。" }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "不答，绕碑而行",
+          "effects": [{ "type": "log", "text": "你绕过石碑，身后那句问话久久不散。" }]
+        }
+      ]
+    },
+    {
+      "id": "dungeon_remains",
+      "title": "前人遗骸",
+      "text": "墙角蜷着一具枯骨，指骨还死死扣着一枚储物袋。此人显然也是进来寻机缘的。",
+      "weight": 12,
+      "conditions": { "where": "dungeon" },
+      "choices": [
+        {
+          "id": "take",
+          "text": "掰开指骨，取走储物袋",
+          "effects": [
+            { "type": "stone", "value": 150 },
+            { "type": "item", "id": "spirit_herb", "count": 2 },
+            { "type": "log", "text": "袋中有些灵石与几株干枯的灵草。你把他面朝上放好，算是尽了礼数。" }
+          ]
+        },
+        {
+          "id": "bury",
+          "text": "掘土掩埋，只取一物为凭",
+          "require": { "stamina": 15 },
+          "effects": [
+            { "type": "stamina", "value": -15 },
+            { "type": "attr", "key": "luck", "value": 1 },
+            { "type": "log", "text": "你以剑代锹，草草掩埋。起身后忽觉心境澄明。" }
+          ]
+        },
+        {
+          "id": "ignore",
+          "text": "不看第二眼，径自前行",
+          "effects": [{ "type": "log", "text": "你越过枯骨，没有回头。" }]
+        }
+      ]
+    },
+    {
+      "id": "dungeon_formation",
+      "title": "残阵",
+      "text": "地面刻着一圈早已黯淡的阵纹，中央凹陷处还留着灵石的碎屑。此阵尚可勉强催动一次。",
+      "weight": 9,
+      "conditions": { "where": "dungeon" },
+      "choices": [
+        {
+          "id": "charge",
+          "text": "以自身灵力催阵，赌一把",
+          "require": { "mp": 30 },
+          "hint": "需灵力 30",
+          "effects": [
+            { "type": "log", "text": "阵纹亮起，一头妖兽被硬生生扯到了你面前。" },
+            { "type": "mp", "value": -30 },
+            { "type": "battle", "tier": "elite" }
+          ]
+        },
+        {
+          "id": "study",
+          "text": "拓下阵纹，慢慢参详",
+          "require": { "stamina": 20 },
+          "effects": [
+            { "type": "stamina", "value": -20 },
+            { "type": "exp_ratio", "value": 0.15 },
+            { "type": "log", "text": "你把阵纹一笔一划拓在玉简上，此行不算空手。" }
+          ]
+        },
+        {
+          "id": "smash",
+          "text": "一剑劈了，省得害人",
+          "effects": [
+            { "type": "stone", "value": 60 },
+            { "type": "log", "text": "阵纹崩碎，几块灵石碎片滚了出来。" }
+          ]
+        }
+      ]
+    }
+  ]
+}

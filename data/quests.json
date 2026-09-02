@@ -1,0 +1,180 @@
+{
+  "quests": [
+    {
+      "id": "q_slay",
+      "name": "斩妖卫道",
+      "faction": "青云宗",
+      "desc": "宗门号令：铲除为祸修士的妖兽。",
+      "once": false,
+      "objectives": [
+        {
+          "track": "combat",
+          "target": 3,
+          "label": "斩妖",
+          "match": {
+            "min_tier": "normal"
+          }
+        }
+      ],
+      "reward": [
+        {
+          "type": "stone",
+          "value": 150
+        },
+        {
+          "type": "exp_ratio",
+          "value": 0.03
+        }
+      ],
+      "rep": 8
+    },
+    {
+      "id": "q_visit",
+      "name": "寻仙访道",
+      "faction": "青云宗",
+      "desc": "游历四方，听同道论道、访前人遗泽。",
+      "once": false,
+      "objectives": [
+        {
+          "track": "event",
+          "target": 2,
+          "label": "访道"
+        }
+      ],
+      "reward": [
+        {
+          "type": "stone",
+          "value": 100
+        },
+        {
+          "type": "item",
+          "id": "qi_gathering_pill",
+          "count": 2
+        }
+      ],
+      "rep": 6
+    },
+    {
+      "id": "q_elite",
+      "name": "猎杀凶兽",
+      "faction": "青云宗",
+      "desc": "深入险地，猎杀修为深厚的妖兽以炼器。",
+      "once": false,
+      "objectives": [
+        {
+          "track": "combat",
+          "target": 1,
+          "label": "猎凶",
+          "match": {
+            "min_tier": "elite"
+          }
+        }
+      ],
+      "reward": [
+        {
+          "type": "stone",
+          "value": 400
+        },
+        {
+          "type": "item",
+          "id": "beast_core",
+          "count": 1
+        }
+      ],
+      "rep": 12
+    },
+    {
+      "id": "q_break",
+      "name": "破境之资",
+      "faction": "散修",
+      "desc": "散修无门无派，唯以破境印证道途。",
+      "once": true,
+      "objectives": [
+        {
+          "track": "breakthrough",
+          "target": 1,
+          "label": "破境"
+        }
+      ],
+      "reward": [
+        {
+          "type": "stone",
+          "value": 300
+        },
+        {
+          "type": "attr",
+          "key": "spirit",
+          "value": 1
+        }
+      ],
+      "rep": 5
+    },
+    {
+      "id": "q_sect_honor",
+      "name": "宗门荣耀",
+      "faction": "青云宗",
+      "desc": "声望卓著者方堪大任：为宗门立下赫赫战功。",
+      "once": true,
+      "min_rep": {
+        "青云宗": 24
+      },
+      "objectives": [
+        {
+          "track": "combat",
+          "target": 10,
+          "label": "战功",
+          "match": {
+            "min_tier": "normal"
+          }
+        }
+      ],
+      "reward": [
+        {
+          "type": "stone",
+          "value": 1000
+        },
+        {
+          "type": "exp_ratio",
+          "value": 0.15
+        },
+        {
+          "type": "attr",
+          "key": "physique",
+          "value": 2
+        }
+      ],
+      "rep": 20
+    },
+    {
+      "id": "q_sect_training",
+      "name": "宗门课业",
+      "faction": "青云宗",
+      "desc": "完成宗门每月课业：猎妖、历练、突破，皆有修为进益。",
+      "objectives": [
+        {
+          "track": "combat",
+          "target": 3,
+          "label": "猎妖"
+        },
+        {
+          "track": "event",
+          "target": 2,
+          "label": "历练"
+        }
+      ],
+      "reward": [
+        {
+          "type": "exp_ratio",
+          "value": 0.05
+        },
+        {
+          "type": "stone",
+          "value": 200
+        }
+      ],
+      "rep": 3,
+      "once": false,
+      "min_realm": ""
+    }
+  ]
+}

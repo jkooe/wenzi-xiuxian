@@ -1,0 +1,431 @@
+/* ============================================================================
+ * 文字修仙 · Web 组件样式（Component Styles）
+ * ----------------------------------------------------------------------------
+ * 只引用 tokens.css 中的变量，不出现裸值。
+ * 组件清单：
+ *   1. PageShell   —— 页面骨架（header / main 栅格 / 响应式断点）
+ *   2. StatusCard  —— 角色状态卡（hero + 主进度 + 三槽 + 属性格 + 标签）
+ *   3. StatBar     —— 数值进度条（气血/灵力/精力）
+ *   4. StatGrid    —— 属性格（4 列网格）
+ *   5. TagList     —— 标签组（神通/功法/装备/buff）
+ *   6. ActionBar   —— 行动按钮组（桌面网格 / 移动端底部固定条）
+ *   7. CommandInput—— 指令输入行
+ *   8. FlowLine    —— 叙事文字流行（时间戳 + 命令回显 + 分类着色）
+ *   9. Toast       —— 全局轻提示（错误/连接状态）
+ * ========================================================================== */
+
+/* ---------- 基础重置 ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-family);
+  font-size: var(--fs-md);
+  line-height: 1.6;
+}
+
+/* ---------- 1. PageShell ---------- */
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(135deg, #1a1333 0%, #2a1a4a 55%, #0d1f3c 100%);
+  border-bottom: 1px solid var(--c-border-strong);
+}
+.page-header h1 { font-size: var(--fs-xl); color: var(--c-accent); letter-spacing: 4px; }
+.page-header p { font-size: var(--fs-xs); color: var(--c-text-3); margin-top: 2px; }
+
+.page-main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-3);
+}
+.page-left, .page-right { min-width: 0; }
+
+/* ---------- 通用卡片 ---------- */
+.card {
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-1);
+}
+.card-title {
+  font-size: var(--fs-sm);
+  color: var(--c-accent);
+  letter-spacing: 2px;
+  font-weight: 500;
+  margin-bottom: var(--space-3);
+}
+.card-sub { font-size: var(--fs-xs); color: var(--c-text-3); padding: 0 var(--space-4) var(--space-2); }
+
+/* ---------- 2. StatusCard ---------- */
+.hero { text-align: center; padding: var(--space-1) 0 var(--space-2); }
+.hero .realm { font-size: var(--fs-hero); color: var(--c-accent); letter-spacing: 3px; }
+.hero .name { font-size: var(--fs-sm); color: var(--c-text-2); margin-top: var(--space-1); }
+.hero .next { font-size: var(--fs-sm); color: var(--c-info); margin-top: 2px; }
+
+/* 境界身份徽章：飞升后「仙」金章，凡界「凡」灰章 */
+.realm-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  margin-right: var(--space-2);
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+  letter-spacing: 0;
+}
+.realm-badge.immortal {
+  background: linear-gradient(135deg, #d8b25a 0%, #a8783a 100%);
+  color: #1a1333;
+  border: 1px solid #e8c86a;
+  box-shadow: 0 0 8px rgba(232, 200, 106, 0.35);
+}
+.realm-badge.mortal {
+  background: var(--c-surface-2);
+  color: var(--c-text-3);
+  border: 1px solid var(--c-border-strong);
+}
+
+/* 主进度条（境界修炼进度） */
+.main-bar {
+  height: 10px;
+  border-radius: 6px;
+  background: var(--c-surface-2);
+  overflow: hidden;
+  margin: var(--space-2) 0 var(--space-3);
+}
+.main-bar i {
+  display: block; height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--c-accent-2), var(--c-accent));
+  transition: width .6s ease;
+}
+
+/* ---------- 3. StatBar（三槽） ---------- */
+.stat-bars .stat-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); font-size: var(--fs-sm); }
+.stat-bars .stat-lab { width: 48px; color: var(--c-text-3); flex-shrink: 0; }
+.stat-bars .stat-track { flex: 1; height: 8px; border-radius: 5px; background: var(--c-surface-2); overflow: hidden; }
+.stat-bars .stat-track i { display: block; height: 100%; border-radius: 5px; transition: width .6s ease; }
+.stat-bars .stat-val { width: 96px; text-align: right; color: var(--c-text-2); flex-shrink: 0; font-family: var(--font-mono); font-size: var(--fs-xs); }
+.stat-hp i { background: var(--c-hp); }
+.stat-mp i { background: var(--c-mp); }
+.stat-st i { background: var(--c-good); }
+
+/* ---------- 4. StatGrid（属性格） ---------- */
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+.stat-grid + .stat-grid { margin-top: var(--space-2); }
+.stat-cell {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  text-align: center;
+}
+.stat-cell .v { font-size: var(--fs-lg); color: var(--c-text); font-family: var(--font-mono); }
+.stat-cell .k { font-size: var(--fs-xs); color: var(--c-text-3); margin-top: 2px; }
+
+/* 元信息行（灵石/寿元/灵气/修为） */
+.meta { font-size: var(--fs-sm); color: var(--c-text-2); line-height: 1.9; }
+.meta b { color: var(--c-accent); font-weight: 500; }
+.meta + .meta { margin-top: var(--space-1); }
+
+/* ---------- 5. TagList ---------- */
+.tags { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.tag {
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-pill);
+  padding: 3px var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--c-text-2);
+  white-space: nowrap;
+}
+.tag.gold { border-color: var(--c-accent-2); color: var(--c-accent); }
+
+/* ---------- 6. ActionBar ---------- */
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.btn {
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border-strong);
+  color: var(--c-text-2);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
+  min-height: 44px;                 /* 触控标准：移动端点按区 ≥44px */
+  font-size: var(--fs-md);
+  cursor: pointer;
+  flex: 1 1 auto;
+  transition: filter .15s ease, transform .1s ease;
+}
+.btn.primary {
+  background: var(--c-primary);
+  border-color: var(--c-accent-2);
+  color: var(--c-accent);
+  font-weight: 500;
+}
+.btn:active { filter: brightness(1.25); transform: scale(.98); }
+/* 仅在支持 hover 的设备上启用悬停态（触屏不粘住） */
+@media (hover: hover) {
+  .btn:hover { filter: brightness(1.15); }
+}
+
+/* ---------- 7. CommandInput ---------- */
+.inputrow { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+.text-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  color: var(--c-text);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
+  min-height: 44px;
+  font-size: var(--fs-md);
+  font-family: var(--font-family);
+}
+.text-input:focus { outline: none; border-color: var(--c-accent-2); }
+.btn-send {
+  background: var(--c-primary);
+  border: 1px solid var(--c-accent-2);
+  color: var(--c-accent);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-4);
+  min-height: 44px;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+.hint { font-size: var(--fs-xs); color: var(--c-text-3); margin-top: var(--space-2); }
+
+/* ---------- 8. FlowLine（叙事文字流） ---------- */
+.flow-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--header-h) - 32px);
+  min-height: 420px;
+}
+.flow-card .card-title { padding: var(--space-3) var(--space-4) 0; margin-bottom: 0; }
+.flow-card .card-sub { padding: 2px var(--space-4) var(--space-2); }
+#log {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-1) var(--space-4) var(--space-4);
+  scroll-behavior: smooth;
+}
+.tline { display: flex; gap: var(--space-2); align-items: baseline; margin-bottom: 4px; }
+.tline .ts { font-size: var(--fs-xs); color: var(--c-text-4); flex-shrink: 0; margin-top: 2px; font-family: var(--font-mono); }
+.tline .cmd { font-size: var(--fs-xs); color: var(--c-accent-2); flex-shrink: 0; font-family: var(--font-mono); }
+.tline .txt { font-size: var(--fs-md); line-height: 1.8; }
+.tline.flow .txt { color: var(--c-text-2); font-style: italic; }
+.tline.result .txt { color: var(--c-accent); }
+.tline.bad .txt { color: var(--c-warn); }
+.tline.sys .txt { color: var(--c-info); font-size: var(--fs-xs); }
+.tline { animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+/* ---------- 9. Toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--actions-h) + var(--space-4));
+  transform: translateX(-50%) translateY(8px);
+  z-index: var(--z-toast);
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border-strong);
+  color: var(--c-text);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--fs-sm);
+  box-shadow: var(--shadow-3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease;
+  max-width: calc(100vw - 48px);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.error { border-color: var(--c-warn); color: var(--c-warn); }
+
+/* ---------- 10. Modal（模态框） ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: var(--z-modal);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-4);
+}
+.modal-overlay.show { display: flex; }
+
+.modal {
+  background: var(--c-bg-elev);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  max-width: 480px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-3);
+  animation: modal-fade-in .2s ease-out;
+}
+@keyframes modal-fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+.modal-title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--c-text);
+}
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--c-text-sub);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  transition: background .15s ease;
+}
+.modal-close:hover { background: var(--c-bg-hover); }
+
+.modal-body { color: var(--c-text); line-height: 1.6; }
+.modal-body .item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--c-border);
+}
+.modal-body .item:last-child { border-bottom: none; }
+.modal-body .item-name { flex: 1; }
+.modal-body .item-status { color: var(--c-text-sub); font-size: var(--fs-sm); }
+.modal-body .item-done { color: var(--c-success); }
+
+.modal-footer {
+  margin-top: var(--space-4);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* ---------- 11. Catalog（秘境目录弹窗） ---------- */
+.catalog-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.catalog-item {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--c-surface);
+  transition: border-color .15s ease, transform .1s ease;
+}
+.catalog-item.locked { opacity: .72; background: var(--c-surface-2); }
+.catalog-item.tap { cursor: pointer; }
+.catalog-item.tap:hover { border-color: var(--c-accent-2); }
+.catalog-item.tap:active { transform: scale(.985); border-color: var(--c-accent); }
+/* 仙界秘境：左缘金边 + 微光 */
+.catalog-item.immortal {
+  border-color: var(--c-accent-2);
+  background: linear-gradient(180deg, #1d1a35 0%, var(--c-surface) 100%);
+}
+.catalog-item.immortal .catalog-head b { color: var(--c-accent); }
+.catalog-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-md);
+}
+.catalog-head b { color: var(--c-text); font-weight: 600; }
+.catalog-badge {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #d8b25a 0%, #a8783a 100%);
+  color: #1a1333;
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+.catalog-state { margin-left: auto; font-size: var(--fs-xs); color: var(--c-text-2); flex-shrink: 0; max-width: 48%; text-align: right; }
+.catalog-state.locked { color: var(--c-warn); }
+.catalog-state.in { color: var(--c-info); }
+.catalog-meta { font-size: var(--fs-xs); color: var(--c-text-3); margin-top: var(--space-2); }
+.catalog-desc { font-size: var(--fs-sm); color: var(--c-text-2); line-height: 1.7; margin-top: var(--space-1); }
+.catalog-reward { font-size: var(--fs-xs); color: var(--c-accent); margin-top: var(--space-2); }
+.catalog-hint { font-size: var(--fs-xs); color: var(--c-text-3); margin-top: var(--space-4); text-align: center; }
+
+/* 目录入口按钮：视觉上区别于普通命令按钮 */
+.btn.catalog { border-color: var(--c-accent-2); color: var(--c-accent); }
+
+/* 移动端底部固定行动条：默认隐藏，仅 <768px 显示 */
+.bottom-actions { display: none; }
+
+/* ============================================================================
+ * 响应式断点（Responsive Breakpoints）
+ *   ≥1024px  双栏：左 380px 面板 + 右文字流
+ *   768-1023 双栏：左 320px 压缩面板 + 右文字流
+ *   <768px   单栏堆叠 + 底部固定行动条（移动端拇指区）
+ * ========================================================================== */
+@media (min-width: 1024px) {
+  .page-main { grid-template-columns: var(--panel-w) 1fr; align-items: start; }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .page-main { grid-template-columns: var(--panel-w-md) 1fr; align-items: start; }
+}
+@media (max-width: 767px) {
+  .page-main { grid-template-columns: 1fr; padding-bottom: calc(var(--actions-h) + var(--space-4)); }
+  /* 面板卡片在手机上不再横排，各占一行 */
+  .page-left { display: flex; flex-direction: column; gap: var(--space-3); }
+  .flow-card { height: 62vh; min-height: 360px; }
+  /* 底部固定行动条：横向滚动，主操作按钮固定在首 */
+  .bottom-actions {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: var(--z-actions);
+    display: flex;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: rgba(13, 15, 28, 0.92);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--c-border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .bottom-actions::-webkit-scrollbar { display: none; }
+  .bottom-actions .btn { flex: 0 0 auto; min-width: 72px; white-space: nowrap; }
+  .bottom-actions .btn.primary { order: -1; flex: 0 0 auto; }
+  /* 秘境目录/档案类按钮：置顶可见（非 primary 但仍要优先可及） */
+  .bottom-actions .btn.catalog { order: 0; color: var(--c-accent); }
+  /* 隐藏桌面版行动区（由底部条接管） */
+  .page-left .card-actions { display: none; }
+  .toast { bottom: calc(var(--actions-h) + var(--space-2)); }
+  /* 移动端弹窗贴近全屏：减少上下留白，目录更耐看 */
+  .modal { max-height: 92vh; }
+  .modal-body { max-height: calc(92vh - 140px); overflow-y: auto; }
+}
