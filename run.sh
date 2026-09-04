@@ -9,6 +9,21 @@
 set -e
 cd "$(dirname "$0")"
 
+# 联网修仙服务端（FastAPI + uvicorn，账号 + 存档上云）
+#   ./run.sh server            # 默认 0.0.0.0:8000
+#   ./run.sh server 9000       # 指定端口
+if [[ "${1:-}" == "server" ]]; then
+  shift || true
+  PORT="${1:-8000}"
+  if [[ ! -x ./.venv/bin/python ]]; then
+    echo "错误：未找到 .venv，请先创建并安装依赖：" >&2
+    echo "  python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt" >&2
+    exit 1
+  fi
+  echo "启动联网修仙服务端（FastAPI + uvicorn）于 0.0.0.0:$PORT"
+  exec ./.venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port "$PORT"
+fi
+
 # 候选解释器按优先级排列（workbuddy 托管 > Homebrew > 系统 PATH）
 CANDIDATES=(
   /Users/mantianfuyun/.workbuddy/binaries/python/versions/3.13.12/bin/python3
