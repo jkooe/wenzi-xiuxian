@@ -3535,3 +3535,173 @@ class TestLawEpiphany(unittest.TestCase):
         law.progress["metal"] = sum(lawcfg.LAW_STAGE_COST[:5])
         law.progress["wood"] = sum(lawcfg.LAW_STAGE_COST[:5])
         self.assertFalse(law.should_keep_wudao(), "达标后不应再空转悟道")
+
+
+class TestLawAffixes(unittest.TestCase):
+    """法则词条化（第 28 批）：主属性 + 阶梯副词条。
+
+    守住：
+      1. 金属六条满阶 = 主属性 +40%（偏移） + 副词条（speed/def 各 +5%）
+      2. time/causality 满阶既给功能效果（cultivate_speed/insight_rate）又给主键属性
+         （physique/luck 各 +40%），且副词条落在现有属性内（不引入二级战斗属性）
+      3. 副词条只在仙界生效，凡界不叠加
+    """
+
+    def _immortal(self, seed=2026):
+        game = create_game(name="词条测试", seed=seed)
+        game.clock.disabled = True
+        p = game.player
+        p.realm_key = "human_immortal"
+        game.rebuild_bonuses()
+        return game, p
+
+    def test_metal_full_has_secondary_affixes(self):
+        """金之法则满阶：atk ×1.40（主）+ speed/def ×1.05（副词条）。"""
+        game, p = self._immortal()
+        law = game.system("law")
+        b_atk, b_spd, b_def = p.atk, p.speed, p.attributes.value("def")
+        law.progress["metal"] = lawcfg.LAW_FULL_COST
+        game.rebuild_bonuses()
+        self.assertAlmostEqual(p.atk / b_atk, 1.40, places=2)
+        self.assertAlmostEqual(p.speed / b_spd, 1.05, places=2)
+        self.assertAlmostEqual(p.attributes.value("def") / b_def, 1.05, places=2)
+
+    def test_time_full_attr_and_utility(self):
+        """时间法则满阶：physique ×1.40（主，每阶 0.08）+ speed/comprehension 副词条 + cultivate_speed 功能。"""
+        game, p = self._immortal()
+        law = game.system("law")
+        b_phy, b_spd, b_cmp = p.physique, p.speed, p.comprehension
+        cs_before = game.bonuses.value("cultivate_speed")
+        law.progress["time"] = lawcfg.LAW_FULL_COST
+        game.rebuild_bonuses()
+        self.assertAlmostEqual(p.physique / b_phy, 1.40, places=2)
+        self.assertAlmostEqual(p.speed / b_spd, 1.05, places=2)
+        self.assertAlmostEqual(p.comprehension / b_cmp, 1.05, places=2)
+        # 功能效果（cultivate_speed）随阶线性 +0.40，且不被副词条干扰
+        self.assertAlmostEqual(game.bonuses.value("cultivate_speed") - cs_before,
+                                lawcfg.LAW_STAGE_VALUE * lawcfg.LAW_MAX_STAGE, places=4)
+
+    def test_causality_full_attr_and_utility(self):
+        """因果法则满阶：luck ×1.40（主）+ spirit/comprehension 副词条 + insight_rate 功能。"""
+        game, p = self._immortal()
+        law = game.system("law")
+        b_luck, b_spi, b_cmp = p.luck, p.attributes.value("spirit"), p.comprehension
+        ir_before = game.bonuses.value("insight_rate")
+        law.progress["causality"] = lawcfg.LAW_FULL_COST
+        game.rebuild_bonuses()
+        self.assertAlmostEqual(p.luck / b_luck, 1.40, places=2)
+        self.assertAlmostEqual(p.attributes.value("spirit") / b_spi, 1.05, places=2)
+        self.assertAlmostEqual(p.comprehension / b_cmp, 1.05, places=2)
+        # 功能效果（insight_rate）随阶线性 +0.40（硬顶在 law_insight_rate 内，聚合器存原始值）
+        self.assertAlmostEqual(game.bonuses.value("insight_rate") - ir_before,
+                                lawcfg.LAW_STAGE_VALUE * lawcfg.LAW_MAX_STAGE, places=4)
+
+    def test_affixes_only_in_immortal_realm(self):
+        """凡界不享受法则副词条（法则为仙界专属，与第 27 批一致性）。"""
+        game = new_game(seed=3)
+        p = game.player
+        law = game.system("law")
+        b_spd = p.speed
+        law.progress["metal"] = lawcfg.LAW_FULL_COST
+        game.rebuild_bonuses()
+        self.assertAlmostEqual(p.speed, b_spd, places=6,
+                               msg="凡界不应叠加 speed 副词条")
+
+
+class TestImmortalEconomy(unittest.TestCase):
+    """仙界经济闭环（第 28 批）：仙门贡献→法则轴、灵石→仙丹。
+
+    守住：
+      1. 贡献兑换真实扣费并给专注法则进度（5 贡献/感悟）
+      2. 未拜仙门不可兑换（飞升前/无门派拒收）
+      3. 法则感悟丹走 insight_hours，受每日 2 次硬闸约束
+      4. 仙体丹永久提升悟性（灵石 power sink，不碰法则门槛）
+      5. 灵石不足时兑换失败、进度不变
+    """
+
+    def _immortal_with_sect(self, seed=2026, contrib=2000, stones=100000):
+        game = create_game(name="经济测试", seed=seed)
+        game.clock.disabled = True
+        p = game.player
+        p.realm_key = "human_immortal"
+        p.spirit_stones = stones
+        sect = game.system("sect")
+        sect.join("tianshu")                 # 天枢剑宗（人仙可入，主修金）
+        sect.immortal_contribution = contrib
+        game.rebuild_bonuses()
+        return game, p, sect
+
+    def test_buy_insight_spends_contribution(self):
+        game, p, sect = self._immortal_with_sect()
+        law = game.system("law")
+        before = law.progress.get("metal", 0.0)
+        out = law.buy_insight(100)
+        self.assertGreater(law.progress.get("metal", 0.0), before)
+        # 100 感悟 / 0.20 = 500 贡献
+        self.assertEqual(sect.immortal_contribution, 2000 - 500)
+        self.assertTrue(any("兑换" in ln for ln in out))
+
+    def test_buy_insight_rejects_without_sect(self):
+        game = create_game(name="经济测试2", seed=7)
+        game.clock.disabled = True
+        game.player.realm_key = "human_immortal"
+        game.rebuild_bonuses()
+        law = game.system("law")
+        out = law.buy_insight(100)
+        self.assertTrue(any("仙门" in ln for ln in out))
+        self.assertEqual(law.progress.get("metal", 0.0), 0.0)
+
+    def test_buy_epiphany(self):
+        game, p, sect = self._immortal_with_sect(contrib=1000)
+        law = game.system("law")
+        before = law.progress.get("metal", 0.0)
+        law.buy_epiphany()
+        self.assertAlmostEqual(law.progress.get("metal", 0.0) - before,
+                               law.IMMORTAL_EPIPHANY_INSIGHT, places=4)
+        self.assertEqual(sect.immortal_contribution, 1000 - law.IMMORTAL_EPIPHANY_COST)
+
+    def test_buy_stage_advances_one(self):
+        game, p, sect = self._immortal_with_sect(contrib=5000)
+        law = game.system("law")
+        law.progress["metal"] = 0.0           # 0 阶
+        stage0 = lawcfg.stage_of(0.0)
+        law.buy_stage()
+        self.assertEqual(lawcfg.stage_of(law.progress["metal"]), stage0 + 1)
+        # 成本 = 本阶 100 × 3 / 0.20 = 1500 贡献
+        self.assertEqual(sect.immortal_contribution, 5000 - 1500)
+
+    def test_law_insight_pill_capped_by_daily_limit(self):
+        """法则感悟丹：每日上限 2 次（与事件共享）。买 3 颗，第 3 服被硬闸拒绝。"""
+        game, p, sect = self._immortal_with_sect(stones=200000)
+        market = game.system("market")
+        market.buy("law_insight_pill", 3)
+        law = game.system("law")
+        before = law.progress.get("metal", 0.0)
+        game.use_item("law_insight_pill")          # 首服
+        self.assertGreater(law.progress.get("metal", 0.0), before, "首服应给感悟")
+        game.use_item("law_insight_pill")          # 第二次
+        mid = law.progress.get("metal", 0.0)
+        self.assertGreater(mid, before, "第二次仍在每日上限内，应给感悟")
+        out3 = game.use_item("law_insight_pill")   # 第三服：超出每日 2 次硬闸
+        self.assertTrue(any("机缘已尽" in ln for ln in out3), "第三服超出每日 2 次硬闸")
+        self.assertAlmostEqual(law.progress.get("metal", 0.0), mid, msg="被拒后进度不应再涨")
+
+    def test_immortal_body_pill_permanent_comprehension(self):
+        game, p, sect = self._immortal_with_sect(stones=100000)
+        market = game.system("market")
+        market.buy("immortal_body_pill")
+        before = p.comprehension
+        game.use_item("immortal_body_pill")
+        self.assertGreaterEqual(p.comprehension - before, 2.9, "仙体丹应永久 +3 悟性")
+
+    def test_immortal_pill_useless_before_ascension(self):
+        """飞升前服法则感悟丹不应凭空攒感悟（灵石不乱给仙界进度）。"""
+        game = new_game(seed=11)
+        p = game.player
+        p.spirit_stones = 100000
+        market = game.system("market")
+        market.buy("law_insight_pill")
+        law = game.system("law")
+        before = law.progress.get("metal", 0.0)
+        game.use_item("law_insight_pill")
+        self.assertEqual(law.progress.get("metal", 0.0), before)

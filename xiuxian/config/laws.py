@@ -97,6 +97,67 @@ LAW_FULL_COST: float = sum(LAW_STAGE_COST)
 # 故单条满阶 = +40% 偏移 → 该属性 ×1.40；不连乘，防多路线叠出指数爆炸。
 LAW_STAGE_VALUE = 0.08
 
+# ---------- 法则词条化（第 28 批） ----------
+# 每条法则按阶解锁的「副词条」。索引 = 阶(1..5)，元素为该阶解锁的副词条列表：
+#     (effect_type, attr_key, value)
+# 主属性仍由 LawDef.effect_type/effect_key + LAW_STAGE_VALUE×stage 提供（collect_bonuses 主路径），
+# 此处只放「额外」词条 —— 高阶(圆满4/主宰5)解锁，作深投奖励，避免法则只是扁平单值。
+#
+# 幅度基线（可调）：
+#   SEC_AFFIX = 0.05   → 副词条 +5%/阶（attr_mul）或固定加值（attr_add）
+#   TIME_CAUSALITY_PRIMARY = 0.08 → time/causality 主键属性 +8%/阶（每阶都给，满阶 +40%，
+#        与金属等六条对称；它们本无属性，靠此补上维度，同时保留 cultivate_speed/insight_rate 功能）
+#
+# 为什么只用现有属性、不引入暴击/穿透/减伤：
+#   战斗属性模型仅支持 atk/def/max_hp/max_mp/speed/spirit/comprehension/physique/luck
+#   （见 core/attributes.py 与 config/arts.py 的可用属性表），引入二级战斗属性需扩展 combat
+#   管线、回归面过广，故本期不碰；副词条全部落在上述 9 个现有属性内。
+SEC_AFFIX = 0.05
+TIME_CAUSALITY_PRIMARY = 0.08
+
+# 每条法则五阶的副词条（不足五阶的阶位用空元组占位）。
+#   metal/wood/water/fire/earth/space：主属性已在 LawDef，这里只放 圆满(4)/主宰(5) 的副词条。
+#   time/causality：主属性(physique/luck)在此每阶给，功能效果(cultivate_speed/insight_rate)走 LawDef。
+LAW_AFFIXES: dict[str, tuple[tuple, ...]] = {
+    "metal": ((), (), (),
+              (("attr_mul", "speed", SEC_AFFIX),),
+              (("attr_mul", "def", SEC_AFFIX),)),
+    "wood": ((), (), (),
+             (("attr_mul", "max_mp", SEC_AFFIX),),
+             (("attr_add", "physique", 30.0),)),
+    "water": ((), (), (),
+              (("attr_mul", "speed", SEC_AFFIX),),
+              (("attr_mul", "spirit", SEC_AFFIX),)),
+    "fire": ((), (), (),
+             (("attr_mul", "atk", SEC_AFFIX),),
+             (("attr_add", "physique", 30.0),)),
+    "earth": ((), (), (),
+              (("attr_mul", "max_hp", SEC_AFFIX),),
+              (("attr_mul", "spirit", SEC_AFFIX),)),
+    "space": ((), (), (),
+              (("attr_mul", "speed", SEC_AFFIX),),
+              (("attr_mul", "comprehension", SEC_AFFIX),)),
+    # time：每阶补 physique（时光淬体），保留 cultivate_speed；圆满/主宰再加 speed/comprehension
+    "time": ((("attr_mul", "physique", TIME_CAUSALITY_PRIMARY),),
+             (("attr_mul", "physique", TIME_CAUSALITY_PRIMARY),),
+             (("attr_mul", "physique", TIME_CAUSALITY_PRIMARY),),
+             (("attr_mul", "physique", TIME_CAUSALITY_PRIMARY),
+              ("attr_mul", "speed", SEC_AFFIX)),
+             (("attr_mul", "physique", TIME_CAUSALITY_PRIMARY),
+              ("attr_mul", "comprehension", SEC_AFFIX)),),
+    # causality：每阶补 luck（因果牵运），保留 insight_rate；圆满/主宰再加 spirit/comprehension
+    "causality": ((("attr_mul", "luck", TIME_CAUSALITY_PRIMARY),),
+                 (("attr_mul", "luck", TIME_CAUSALITY_PRIMARY),),
+                 (("attr_mul", "luck", TIME_CAUSALITY_PRIMARY),),
+                 (("attr_mul", "luck", TIME_CAUSALITY_PRIMARY),
+                  ("attr_mul", "spirit", SEC_AFFIX),),
+                 (("attr_mul", "luck", TIME_CAUSALITY_PRIMARY),
+                  ("attr_mul", "comprehension", SEC_AFFIX)),),
+}
+
+# 词条幅度校验：每条法则必须恰好五阶占位，防止 collect_bonuses 越界。
+assert all(len(v) == LAW_MAX_STAGE for v in LAW_AFFIXES.values()), "LAW_AFFIXES 阶数不对"
+
 # ---------- 悟道 ----------
 # 基础产出（感悟值 / 时辰）。
 #

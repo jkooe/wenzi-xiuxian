@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文字修仙 · 第二十八批 仙界经济闭环 + 法则词条化 复盘</title>
+<style>
+  :root {
+    --bg-0: #0e0f17; --bg-1: #161828; --bg-2: #1e2138;
+    --txt: #e8e6f0; --muted: #9a97ad; --line: #2c2f4d;
+    --gold: #d4a95c; --purple: #8b6fd8; --red: #c96a6a; --green: #6fae8c;
+    --blue: #6f8fd8; --card: #1b1d30;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, var(--bg-0), var(--bg-1) 60%, var(--bg-0));
+    color: var(--txt); line-height: 1.7; padding: 0 0 60px; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+  header { text-align: center; padding: 54px 20px 36px;
+    background: radial-gradient(ellipse at top, rgba(212,169,92,.16), transparent 60%),
+                linear-gradient(180deg, var(--bg-1), var(--bg-0));
+    border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 30px; letter-spacing: 2px; color: var(--gold); font-weight: 700; }
+  header p { color: var(--muted); margin-top: 10px; font-size: 14px; }
+  header .sub { margin-top: 18px; display: inline-block; padding: 6px 18px;
+    border: 1px solid var(--gold); border-radius: 20px; color: var(--gold); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px; margin: 34px 0; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; text-align: center; }
+  .kpi .v { font-size: 26px; font-weight: 700; color: var(--gold); }
+  .kpi .k { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .kpi.ok .v { color: var(--green); }
+  .kpi.warn .v { color: var(--red); }
+  h2 { font-size: 19px; color: var(--gold); margin: 40px 0 14px;
+    padding-left: 12px; border-left: 3px solid var(--gold); }
+  h3 { font-size: 15px; color: var(--purple); margin: 24px 0 8px; }
+  .card { background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px 20px; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .up { color: var(--red); } .down { color: var(--green); } .good { color: var(--green); }
+  .bad { color: var(--red); } .mid { color: var(--gold); }
+  code { background: var(--bg-2); padding: 1px 6px; border-radius: 4px;
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--gold); }
+  ul { margin: 8px 0 8px 20px; } li { margin: 4px 0; font-size: 14px; }
+  .note { border-left: 3px solid var(--purple); background: rgba(139,111,216,.08);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 14px; }
+  .warnbox { border-left: 3px solid var(--red); background: rgba(201,106,106,.08);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 14px; }
+  .okbox { border-left: 3px solid var(--green); background: rgba(111,174,140,.08);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 14px; }
+  footer { text-align: center; color: var(--muted); font-size: 12px;
+    margin-top: 50px; padding-top: 20px; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <h1>第二十八批 · 仙界经济闭环 + 法则词条化</h1>
+  <p>文字修仙 · 挂机文字游戏 · 纯 Python 标准库</p>
+  <span class="sub">双轴资源博弈成环 · 8 条法则全部词条化</span>
+</header>
+
+<div class="wrap">
+
+  <div class="grid">
+    <div class="kpi ok"><div class="v">5.4%</div><div class="k">外部感悟占比（&lt;15% ✓）</div></div>
+    <div class="kpi ok"><div class="v">1.4%</div><div class="k">经济对时长净影响（&lt;10% ✓）</div></div>
+    <div class="kpi ok"><div class="v">+11</div><div class="k">新增单测（全过）</div></div>
+    <div class="kpi"><div class="v">316</div><div class="k">全程回归（零失败）</div></div>
+  </div>
+
+  <div class="okbox">
+    <b>结论：</b>第二十八批把「仙门贡献 → 法则轴」与「灵石 → 仙阶丹药」两个消耗点打通，仙界双轴（修为 / 法则）资源博弈成环；
+    同时把 8 条法则全部词条化（主属性 + 阶梯副词条），不引入任何新战斗属性。
+    8 种子校准证明：最激进的「全买派」外部感悟占比仅 <b>5.4%</b>（远低于 15% 红线），
+    对仙界总时长的净压缩仅 <b>1.4%</b>——经济闭环<b>未破坏</b> 1170 天节奏。
+  </div>
+
+  <h2>一、本批做了什么</h2>
+  <div class="card">
+    <h3>① 仙界经济闭环（消耗点怎么搭）</h3>
+    <ul>
+      <li><b>贡献 → 法则轴</b>：仙市·法则兑换，花仙门贡献给专注法则换感悟 / 顿悟机缘 / 直接推一阶。
+        仙门贡献天然受日结约束（约 8~31/日，全程 ≈15720），与修为轴此消彼长，双轴成环。</li>
+      <li><b>灵石 → 仙阶丹药</b>：新增「法则感悟丹」「仙体丹」两件仙界专属丹药，给灵石在仙界一个去处。
+        法则感悟丹走 <code>insight_hours</code>，自动受 <code>INSIGHT_DAILY_LIMIT=2</code> 每日硬闸（与事件共享）+ 高价（3 万/颗）双锁。</li>
+    </ul>
+    <h3>② 法则词条化（走到哪一步）</h3>
+    <ul>
+      <li>每条法则 = <b>主属性</b>（现 6 条属性法则 + time/causality 补齐 physique/luck）+ <b>阶梯副词条</b>（圆满/主宰阶解锁）。</li>
+      <li>time → physique、causality → luck，8 条法则全成「词条」，<b>不引入暴击/穿透/减伤等二级战斗属性</b>。</li>
+      <li>全部走现有 9 个属性（atk/def/max_hp/max_mp/speed/spirit/comprehension/physique/luck），核心计算零改动。</li>
+    </ul>
+  </div>
+
+  <h2>二、法则词条化（配置与公式）</h2>
+  <div class="card">
+    <h3>词条幅度基线（可调）</h3>
+    <table>
+      <tr><th>常量</th><th>值</th><th>含义</th></tr>
+      <tr><td><code>SEC_AFFIX</code></td><td class="num">0.05</td><td>副词条 attr_mul +5%/阶（或 attr_add 固定值）</td></tr>
+      <tr><td><code>TIME_CAUSALITY_PRIMARY</code></td><td class="num">0.08</td><td>time/causality 主键 +8%/阶（满阶 +40%，与金属等六条对称）</td></tr>
+      <tr><td><code>LAW_STAGE_VALUE</code></td><td class="num">0.08</td><td>每阶主属性偏移 +8%（满阶 +40% = 该属性 ×1.40）</td></tr>
+      <tr><td><code>LAW_MAX_STAGE</code></td><td class="num">5</td><td>五阶：感悟→小成→大成→圆满→主宰</td></tr>
+    </table>
+    <h3>八条法则词条表（每阶解锁内容）</h3>
+    <table>
+      <tr><th>法则</th><th>主属性（每阶 +8%）</th><th>圆满(4) 副词条</th><th>主宰(5) 副词条</th></tr>
+      <tr><td>金</td><td>atk ×1.40</td><td>speed +5%</td><td>def +5%</td></tr>
+      <tr><td>木</td><td>max_hp ×1.40</td><td>max_mp +5%</td><td>physique +30</td></tr>
+      <tr><td>水</td><td>max_mp ×1.40</td><td>speed +5%</td><td>spirit +5%</td></tr>
+      <tr><td>火</td><td>speed ×1.40</td><td>atk +5%</td><td>physique +30</td></tr>
+      <tr><td>土</td><td>def ×1.40</td><td>max_hp +5%</td><td>spirit +5%</td></tr>
+      <tr><td>空间</td><td>spirit ×1.40</td><td>speed +5%</td><td>comprehension +5%</td></tr>
+      <tr><td>时间</td><td>physique +8%/阶（×1.40）</td><td>physique + speed +5%</td><td>physique + comprehension +5%</td></tr>
+      <tr><td>因果</td><td>luck +8%/阶（×1.40）</td><td>luck + spirit +5%</td><td>luck + comprehension +5%</td></tr>
+    </table>
+    <p class="note">collect_bonuses 改造：主属性（LawDef.effect_type/key × LAW_STAGE_VALUE×stage）+ 已达成的每一阶解锁的副词条，
+    二者都经现有加成管线（attr_mul 偏移求和、attr_add 累加）。<code>LAW_AFFIXES</code> 用 <code>assert</code> 校验每条恰好五阶占位，防止越界。</p>
+  </div>
+
+  <h2>三、仙界经济闭环（公式与定价推导）</h2>
+  <div class="card">
+    <h3>仙市·法则兑换（仙门贡献 → 法则进度）</h3>
+    <table>
+      <tr><th>常量</th><th>值</th><th>推导</th></tr>
+      <tr><td><code>IMMORTAL_INSIGHT_PER_CONTRIB</code></td><td class="num">0.20</td><td>5 贡献 / 点感悟（兑换率）</td></tr>
+      <tr><td><code>IMMORTAL_EPIPHANY_COST</code></td><td class="num">200</td><td>法则顿悟机缘固定花费</td></tr>
+      <tr><td><code>IMMORTAL_EPIPHANY_INSIGHT</code></td><td class="num">40</td><td>一次机缘给的感悟</td></tr>
+      <tr><td><code>IMMORTAL_STAGE_PREMIUM</code></td><td class="num">3.0</td><td>直接推阶溢价（本阶成本 ×3 折算贡献，稀有奢侈）</td></tr>
+    </table>
+    <p class="note">定价推导：仙门贡献全程可获 ≈ 均值 15/日 × 1048 悟道天 ≈ <b>15720</b>。
+    若全部砸进感悟兑换（0.20 率 → 5 贡献/点）：≈ <b>3144</b> 感悟 = 总需 30400 的 <b>10.3%</b>。
+    仅占一成，法则门槛仍主要靠悟道，节奏不被破坏。与仙职阈值（800/2500/6000/12000）竞争，构成核心张力。</p>
+    <h3>灵石出口（仙阶丹药）</h3>
+    <table>
+      <tr><th>丹药</th><th>价</th><th>效果</th><th>锁</th></tr>
+      <tr><td>法则感悟丹</td><td class="num">30000</td><td><code>insight_hours=8</code>（≈8 时辰产出）</td><td>每日硬闸 2 次 + 高价</td></tr>
+      <tr><td>仙体丹</td><td class="num">20000</td><td><code>attr: comprehension +3</code>（永久）</td><td>仙界专属</td></tr>
+    </table>
+    <p class="note">法则感悟丹的每日硬闸与事件共享（<code>daily_left("insight", 2)</code> 先查后 bump），不破坏节奏；高价是真正的消耗约束，每日 2 次仅作兜底。</p>
+  </div>
+
+  <h2>四、8 种子校准（验证经济不破坏节奏）</h2>
+  <div class="card">
+    <p>模拟最激进的「全买派」——把全部仙门贡献砸进感悟兑换、每日买满 2 颗法则感悟丹——与纯挂机基线对照。
+    八种子（2026..2033）取均值，消除单种子随机噪声（悟道产出 ±14% 浮动、顿悟概率）。</p>
+    <table>
+      <tr><th>模式</th><th>天数均值</th><th>外部占比</th><th>终阶</th><th>丹药</th><th>兑换次</th></tr>
+      <tr><td>纯挂机（无外部注入）</td><td class="num">833</td><td class="num">0.0%</td><td class="num">34</td><td class="num">0</td><td class="num">0</td></tr>
+      <tr><td>全买派（倾尽贡献+丹药）</td><td class="num">821</td><td class="num good">5.4%</td><td class="num">34</td><td class="num">13</td><td class="num">820</td></tr>
+    </table>
+    <div class="okbox">
+      <b>判定1 · 外部感悟占比</b>：全买派均值 5.4% / 峰值 6.3% &lt; 15% —— <b>OK</b>。
+      丹药通道均值仅 13 颗（3 万/颗，受灵石价格锁），仙市兑换均值 820 次；价格才是真锁，每日 2 次为兜底。
+    </div>
+    <div class="okbox">
+      <b>判定2 · 经济对时间线净影响</b>：纯挂机 833 日 → 全买派 821 日 = 压缩 <b>1.4%</b>（&lt;10%）—— <b>OK</b>。
+      外部注入被每日贡献 accrual 摊平在全程，不前置加速，故时间线几乎不变。
+    </div>
+    <div class="warnbox">
+      <b>判定3 · 绝对天数 vs 1170 目标</b>：全买派 821 ∈ [1053,1287]（1170±10%）? —— <b>FAIL（画像效应，非本批回归）</b>。
+      纯挂机（同样拜天枢）亦仅 833 日，证明 820 与 1170 的差距来自<b>拜天枢（+50% 主修金悟道）</b>的玩家画像，
+      与第 28 批经济无关。第 27 批 1132 天基线是无宗门纯挂机。
+    </div>
+    <p class="note">建议：若要把「realistic 仙界时长」重新锚定到 ~1170，应下调 <code>WUDAO_BASE</code>（或削天枢悟道加成），
+    属独立调参项，不在本批经济闭环范围内。请确认是否要我重校。</p>
+  </div>
+
+  <h2>五、测试</h2>
+  <div class="card">
+    <ul>
+      <li>新增 <code>TestLawAffixes</code>（4 项）：金属满阶副词条、time 满阶属性+功能、causality 满阶属性+功能、凡界不叠加。</li>
+      <li>新增 <code>TestImmortalEconomy</code>（7 项）：buy_insight 扣贡献、无门派拒收、buy_epiphany、buy_stage 推一阶、法则感悟丹每日 2 次硬闸、仙体丹永久悟性、飞升前服丹无效。</li>
+      <li>全程 316 项单测（原 305 + 新增 11）全过，零回归。</li>
+    </ul>
+    <p class="note">排查记录：<code>test_law_insight_pill_capped_by_daily_limit</code> 初版失败实为<b>测试本身写法错误</b>（<code>mid</code> 在首服后即 capture），
+    每日硬闸逻辑（先 <code>daily_left</code> 后 <code>bump_daily</code>）经验证正确——第 3 服确实被「静悟机缘已尽」拦截、进度不涨。</p>
+  </div>
+
+  <h2>六、改动文件清单</h2>
+  <div class="card">
+    <ul>
+      <li><code>xiuxian/config/laws.py</code>：新增 <code>SEC_AFFIX</code>/<code>TIME_CAUSALITY_PRIMARY</code> 与 <code>LAW_AFFIXES</code> 词条表</li>
+      <li><code>xiuxian/systems/law.py</code>：collect_bonuses 叠加副词条；新增仙市兑换（buy_insight/buy_epiphany/buy_stage）+ law buy 命令</li>
+      <li><code>xiuxian/config/items.py</code>：新增 law_insight_pill / immortal_body_pill</li>
+      <li><code>tests/test_core.py</code>：TestLawAffixes + TestImmortalEconomy（11 项）</li>
+      <li><code>scripts/calibrate_immortal_economy.py</code>：8 种子双模式校准脚本（纯挂机 vs 全买派）</li>
+    </ul>
+  </div>
+
+  <footer>
+    文字修仙 · 第二十八批复盘 · 数据先于判断，公式可追溯，基线可配置 · 本页为内部开发复盘，不构成任何建议。
+  </footer>
+</div>
+</body>
+</html>

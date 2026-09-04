@@ -140,6 +140,25 @@ ITEMS: dict[str, ItemDef] = {
         effects=({"type": "poison", "value": -15},),
     ),
 
+    # ---------- 仙界丹药（第 28 批：仙界灵石消耗点） ----------
+    # 设计定位：仙俸以灵石发放、仙界却无专属高价消耗，灵石在仙界易堆成死数。
+    #   这两枚仙丹即仙界灵石出口，且都被天然闸门锁死、不破坏 1170 天节奏：
+    #     · 法则感悟丹 走 insight_hours —— 自动受 INSIGHT_DAILY_LIMIT=2 每日硬闸（与事件共享），
+    #       且单价 30000 灵石让「全买派」被灵石收入天然限速（验证见 calibrate）。
+    #     · 仙体丹 永久 +3 悟性 —— 仙界 power sink，不碰法则门槛，只让悟道略快。
+    "law_insight_pill": ItemDef(
+        "law_insight_pill", "法则感悟丹", "pill",
+        "仙界秘炼，服之如静悟八时辰，法则感悟自生（受每日感悟上限约束）。",
+        price=30000, usable=True, min_realm="earth_immortal", poison=0.0,
+        effects=({"type": "insight_hours", "value": 8},),
+    ),
+    "immortal_body_pill": ItemDef(
+        "immortal_body_pill", "仙体丹", "pill",
+        "温养仙骨，永久提升悟性三点，仙途更顺。",
+        price=20000, usable=True, min_realm="earth_immortal", poison=0.0,
+        effects=({"type": "attr", "key": "comprehension", "value": 3},),
+    ),
+
     # ---------- 天材地宝 ----------
     "spirit_water": ItemDef(
         "spirit_water", "灵泉水", "treasure",

@@ -39,7 +39,12 @@ class LawSystem(GameSystem):
 
     # ---------- 加成聚合 ----------
     def collect_bonuses(self, agg) -> None:
-        """把已点亮的法则阶数交给全局聚合器（仅仙界生效）。"""
+        """把已点亮的法则阶数（主属性 + 阶梯副词条）交给全局聚合器（仅仙界生效）。
+
+        主属性走 LawDef.effect_type/effect_key（如 atk / cultivate_speed / insight_rate），
+        副词条走 config.laws.LAW_AFFIXES：每条法则按已达成的每一阶，解锁该阶的额外词条。
+        两者都经现有加成管线（attr_mul 偏移求和、attr_add 累加），零改核心计算。
+        """
         if not RealmRegistry.in_immortal_realm(self.player.realm_key):
             return  # 凡界不窥法则
         for key in law_config.ORDER:
@@ -47,11 +52,21 @@ class LawSystem(GameSystem):
             if stage <= 0:
                 continue
             law = law_config.BY_KEY[key]
+            # 主属性 / 功能效果（每阶 LAW_STAGE_VALUE）
             agg.add(
                 f"{self.SOURCE}{key}",
                 ArtEffect(type=law.effect_type, key=law.effect_key),
                 law_config.LAW_STAGE_VALUE * stage,
             )
+            # 阶梯副词条：已达成的每一阶逐一解锁
+            for k in range(1, stage + 1):
+                for affix in law_config.LAW_AFFIXES.get(key, ())[k - 1]:
+                    atype, akey, aval = affix
+                    agg.add(
+                        f"{self.SOURCE}{key}:affix{k}",
+                        ArtEffect(type=atype, key=akey),
+                        aval,
+                    )
 
     def _refresh(self) -> None:
         self.game.rebuild_bonuses()
@@ -93,6 +108,22 @@ class LawSystem(GameSystem):
     # 这是防刷硬闸（与探索修为的 EXPLORE_DAILY_LIMIT 同理）。
     INSIGHT_DAILY_LIMIT = 2
 
+    # ---------- 仙市·法则兑换（仙门贡献 → 法则进度，第 28 批经济闭环） ----------
+    # 仙门贡献日结（IMMORTAL_CONTRIBUTION_BASE=8 + 仙职加成，约 8~31/日），几乎只进不出
+    # （第 27 批仅灵室一个消耗点）。此处开出「贡献 → 法则轴」的消耗出口，让双轴资源博弈成环：
+    #   玩家可选择「花时辰悟道」还是「花贡献直接换感悟」——二者此消彼长。
+    #
+    # 定价推导（须不破坏 1170 天节奏，详见 calibrate 验证）：
+    #   仙门贡献全程可获 ≈ 均值 15/日 × 1048 悟道天 ≈ 15720。
+    #   若全部砸进「感悟兑换」(RATE=0.20 → 5 贡献/感悟)：≈ 3144 感悟 = 总需 30400 的 10.3%。
+    #   → 仅占一成，法则门槛仍主要靠悟道，节奏不被破坏。
+    #   与仙职阈值(800/2500/6000/12000)竞争：花贡献推法则 = 牺牲升职(俸禄/场地/buff)，
+    #   构成核心张力。
+    IMMORTAL_INSIGHT_PER_CONTRIB = 0.20   # 兑换率：每 1 点感悟需 1/0.20 = 5 贡献
+    IMMORTAL_EPIPHANY_COST = 200         # 法则顿悟机缘：固定花费
+    IMMORTAL_EPIPHANY_INSIGHT = 40       # 一次机缘给的感悟（≈ 同 RATE 的便利版，不需悟道耗时）
+    IMMORTAL_STAGE_PREMIUM = 3.0         # 直接推阶溢价：本阶感悟成本 ×3 折算成贡献（稀有奢侈）
+
     def hourly_insight(self, law_key: str | None = None) -> float:
         """当前每时辰悟道产出（不含随机浮动）——供 insight_hours 效果计价。"""
         key = law_key if law_key in law_config.BY_KEY else self.focus
@@ -130,6 +161,82 @@ class LawSystem(GameSystem):
     def law_name(self, law_key: str | None = None) -> str:
         key = law_key if law_key in law_config.BY_KEY else self.focus
         return law_config.BY_KEY[key].name
+
+    # ---------- 仙市·法则兑换 ----------
+    def _sect_sys(self):
+        """取仙门系统（不存在返回 None）。"""
+        return self.game.systems.get("sect")
+
+    def _spend_immortal_contribution(self, amount: int) -> bool:
+        """扣仙门贡献，成功返回 True。余额不足或不在仙界返回 False。"""
+        sect = self._sect_sys()
+        if sect is None:
+            return False
+        cur = getattr(sect, "immortal_contribution", 0)
+        if cur < amount:
+            return False
+        sect.immortal_contribution = cur - amount
+        return True
+
+    def buy_insight(self, amount: float) -> list[str]:
+        """仙市·感悟兑换：花仙门贡献给专注法则换感悟（5 贡献/感悟）。"""
+        p = self.player
+        if not RealmRegistry.in_immortal_realm(p.realm_key):
+            return ["凡俗之躯，难入仙市。需飞升仙界方可兑换法则。"]
+        if not self._sect_sys() or not self._sect_sys().immortal_sect_key:
+            return ["你尚未拜入仙门，无仙门贡献可耗。（sect join <仙门>）"]
+        amount = max(1.0, float(amount))
+        cost = int(round(amount / self.IMMORTAL_INSIGHT_PER_CONTRIB))
+        if not self._spend_immortal_contribution(cost):
+            have = getattr(self._sect_sys(), "immortal_contribution", 0)
+            return [f"仙门贡献不足，兑换 {fmt_num(amount)} 感悟需 {cost}"
+                    f"（现有 {have}）。"]
+        real, before, after = self.gain_insight(self.focus, amount)
+        logs = [f"于仙市以仙门贡献 {cost} 兑换【{self.law_name()}】感悟 +{fmt_num(real)}"]
+        if after > before:
+            logs.append(f"　【{self.law_name()}】更进一步："
+                        f"{law_config.stage_name(before)} → {law_config.stage_name(after)}！")
+        return logs
+
+    def buy_epiphany(self) -> list[str]:
+        """仙市·法则顿悟机缘：花固定贡献，立即得一笔感悟（不必悟道耗时）。"""
+        p = self.player
+        if not RealmRegistry.in_immortal_realm(p.realm_key):
+            return ["凡俗之躯，难入仙市。需飞升仙界方可兑换法则。"]
+        if not self._sect_sys() or not self._sect_sys().immortal_sect_key:
+            return ["你尚未拜入仙门，无仙门贡献可耗。（sect join <仙门>）"]
+        cost = self.IMMORTAL_EPIPHANY_COST
+        if not self._spend_immortal_contribution(cost):
+            have = getattr(self._sect_sys(), "immortal_contribution", 0)
+            return [f"仙门贡献不足，顿悟机缘需 {cost}（现有 {have}）。"]
+        real, before, after = self.gain_insight(self.focus, self.IMMORTAL_EPIPHANY_INSIGHT)
+        logs = [f"于仙市求得【{self.law_name()}】顿悟机缘（仙门贡献 -{cost}），"
+                f"感悟 +{fmt_num(real)}"]
+        if after > before:
+            logs.append(f"　【{self.law_name()}】更进一步："
+                        f"{law_config.stage_name(before)} → {law_config.stage_name(after)}！")
+        return logs
+
+    def buy_stage(self) -> list[str]:
+        """仙市·直接推阶：花（本阶剩余感悟 × 溢价）贡献，专注法则立即升一阶。"""
+        p = self.player
+        if not RealmRegistry.in_immortal_realm(p.realm_key):
+            return ["凡俗之躯，难入仙市。需飞升仙界方可兑换法则。"]
+        if not self._sect_sys() or not self._sect_sys().immortal_sect_key:
+            return ["你尚未拜入仙门，无仙门贡献可耗。（sect join <仙门>）"]
+        key = self.focus
+        stage = law_config.stage_of(self.progress.get(key, 0.0))
+        if stage >= law_config.LAW_MAX_STAGE:
+            return [f"【{self.law_name()}】已至主宰，无可再推。"]
+        need = law_config.cost_to_next(self.progress.get(key, 0.0))
+        cost = int(round(need / self.IMMORTAL_INSIGHT_PER_CONTRIB * self.IMMORTAL_STAGE_PREMIUM))
+        if not self._spend_immortal_contribution(cost):
+            have = getattr(self._sect_sys(), "immortal_contribution", 0)
+            return [f"仙门贡献不足，推一阶需 {cost}（现有 {have}）。"]
+        real, before, after = self.gain_insight(key, need)
+        return [f"于仙市强推【{self.law_name()}】一阶（仙门贡献 -{cost}），"
+                f"{law_config.stage_name(before)} → {law_config.stage_name(after)}！"
+                f"（感悟 +{fmt_num(real)}）"]
 
     def stage_label(self, stage: int) -> str:
         return law_config.stage_name(stage)
@@ -361,8 +468,34 @@ class LawSystem(GameSystem):
             law = law_config.BY_KEY[args[0]]
             self.game.emit_logs([f"此后静悟以【{law.name}】为主（挂机亦按此推进）。"])
 
+        def _buy(args: list[str]) -> None:
+            # law buy insight <n> | law buy epiphany | law buy stage
+            if not args:
+                self.game.emit_logs([
+                    "用法：law buy insight <感悟数>　仙门贡献换感悟（5 贡献/点）",
+                    "　　　law buy epiphany　　　求顿悟机缘（固定贡献，即时感悟）",
+                    "　　　law buy stage　　　　　强推专注法则一阶（溢价，稀有）",
+                ])
+                return
+            sub = args[0].lower()
+            if sub == "insight":
+                n = 100.0
+                if len(args) > 1:
+                    try:
+                        n = float(args[1])
+                    except ValueError:
+                        pass
+                self.game.emit_logs(self.buy_insight(n))
+            elif sub == "epiphany":
+                self.game.emit_logs(self.buy_epiphany())
+            elif sub == "stage":
+                self.game.emit_logs(self.buy_stage())
+            else:
+                self.game.emit_logs([f"未知兑换「{sub}」。可用：insight / epiphany / stage"])
+
         return [
             Command("wudao", "静悟法则（仙界）", "wudao [法则] [时辰]", _wudao),
             Command("laws", "查看法则面板", "laws", _laws),
             Command("law focus", "设置专注法则", "law focus <法则>", _focus),
+            Command("law buy", "仙市·法则兑换（消耗仙门贡献）", "law buy <insight|epiphany|stage>", _buy),
         ]
