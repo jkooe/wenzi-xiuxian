@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文字修仙 · 第二十七批仙界深度重构复盘</title>
+<style>
+  :root {
+    --bg-0: #0e0f17; --bg-1: #161828; --bg-2: #1e2138;
+    --txt: #e8e6f0; --muted: #9a97ad; --line: #2c2f4d;
+    --gold: #d4a95c; --purple: #8b6fd8; --red: #c96a6a; --green: #6fae8c;
+    --blue: #6f8fd8; --card: #1b1d30;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, var(--bg-0), var(--bg-1) 60%, var(--bg-0));
+    color: var(--txt); line-height: 1.7; padding: 0 0 60px; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+  header { text-align: center; padding: 54px 20px 36px;
+    background: radial-gradient(ellipse at top, rgba(212,169,92,.16), transparent 60%),
+                linear-gradient(180deg, var(--bg-1), var(--bg-0));
+    border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 30px; letter-spacing: 2px; color: var(--gold); font-weight: 700; }
+  header p { color: var(--muted); margin-top: 10px; font-size: 14px; }
+  header .sub { margin-top: 18px; display: inline-block; padding: 6px 18px;
+    border: 1px solid var(--gold); border-radius: 20px; color: var(--gold); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px; margin: 34px 0; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; text-align: center; }
+  .kpi .v { font-size: 26px; font-weight: 700; color: var(--gold); }
+  .kpi .k { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .kpi.ok .v { color: var(--green); }
+  .kpi.warn .v { color: var(--red); }
+  h2 { font-size: 19px; color: var(--gold); margin: 40px 0 14px;
+    padding-left: 12px; border-left: 3px solid var(--gold); }
+  h3 { font-size: 15px; color: var(--purple); margin: 24px 0 8px; }
+  .card { background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px 20px; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .up { color: var(--red); } .down { color: var(--green); } .good { color: var(--green); }
+  .bad { color: var(--red); } .mid { color: var(--gold); }
+  .bar { height: 18px; background: var(--bg-2); border-radius: 4px; overflow: hidden;
+    position: relative; min-width: 90px; }
+  .bar > i { display: block; height: 100%; border-radius: 4px; }
+  code { background: var(--bg-2); padding: 1px 6px; border-radius: 4px;
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--gold); }
+  ul { margin: 8px 0 8px 20px; } li { margin: 4px 0; font-size: 14px; }
+  .note { border-left: 3px solid var(--purple); background: rgba(139,111,216,.08);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 14px; }
+  .warnbox { border-left: 3px solid var(--red); background: rgba(201,106,106,.08);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 14px; }
+  .okbox { border-left: 3px solid var(--green); background: rgba(111,174,140,.08);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 14px; }
+  footer { text-align: center; color: var(--muted); font-size: 12px;
+    margin-top: 50px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 150px;
+    padding: 10px 0; margin: 14px 0; }
+  .chart .col { flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end; height: 100%; }
+  .chart .col i { display: block; width: 100%; border-radius: 4px 4px 0 0;
+    background: linear-gradient(180deg, var(--gold), rgba(212,169,92,.35)); }
+  .chart .col b { font-size: 11px; color: var(--muted); margin-top: 6px; font-weight: 400; }
+  .chart .col em { font-size: 10px; color: var(--txt); font-style: normal; margin-bottom: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>第二十七批 · 仙界深度重构</h1>
+  <p>法则系统 · 仙阶门派 · 仙界专属事件</p>
+  <div class="sub">双轴成长：从「与凡界同速」到 1.53 倍体感差</div>
+</header>
+
+<div class="wrap">
+
+  <div class="grid">
+    <div class="kpi ok"><div class="v">305</div><div class="k">测试全过（+43）</div></div>
+    <div class="kpi ok"><div class="v">1204</div><div class="k">仙界总时长（日）</div></div>
+    <div class="kpi ok"><div class="v">1.53x</div><div class="k">仙界 / 凡界节奏比</div></div>
+    <div class="kpi"><div class="v">27</div><div class="k">事件总数（+12）</div></div>
+    <div class="kpi"><div class="v">32.8</div><div class="k">法则终局阶数 /40</div></div>
+    <div class="kpi ok"><div class="v">+2.9%</div><div class="k">对目标 1170 偏差</div></div>
+  </div>
+
+  <h2>一、先诊断，后动手</h2>
+  <div class="card">
+    <table>
+      <tr><th>指标</th><th class="num">重构前</th><th>问题</th></tr>
+      <tr><td>凡界九境</td><td class="num">669 天（74 天/境）</td><td>—</td></tr>
+      <tr><td>仙界九境</td><td class="num">592 天（<span class="bad">74 天/境</span>）</td><td><span class="bad">与凡界完全同速</span>，飞升无体感差异</td></tr>
+      <tr><td>混元之后</td><td class="num">1739 天</td><td><span class="bad">无内容</span>，终局空虚</td></tr>
+    </table>
+    <div class="note">
+      <b>根因（数学层面）</b>：产出挂「本层需求比例」⇒ 每层所需时辰 = 需求 ÷(需求 × 0.002 × 密度)
+      = 1/(0.002 × 密度) ≈ <b>常数</b>。仙界密度↑（4.5~6.0）恰好被 <code>exp_growth</code>↑（2.2~3.0）抵消。
+      <br><b>结论</b>：硬拉 <code>exp_growth</code> 无效，必须<b>加第二条成长轴</b>。
+    </div>
+  </div>
+
+  <h2>二、方案：双轴成长</h2>
+  <div class="card">
+    <table>
+      <tr><th>轴</th><th>驱动</th><th>产出</th><th>效果区</th><th>设计理由</th></tr>
+      <tr><td><b>境界轴</b>（纵向）</td><td>打坐</td><td>修为</td><td>加区 <code>grow_base</code>（每境属性 ≈ ×4）</td><td>既有体系</td></tr>
+      <tr><td><b>法则轴</b>（横向）</td><td>悟道</td><td>感悟</td><td><b>乘区</b> <code>attr_mul</code>（偏移相加，非连乘）</td><td>走加区会被境界指数成长稀释，玩家感受不到差异</td></tr>
+    </table>
+    <div class="note">
+      仙界突破改为双条件：<b>修为 AND 法则门槛</b>。仙界密度高 ⇒ 打坐 13~15 日/境即圆满，
+      剩余时间全在悟道——「仙途漫漫」由<b>玩法</b>自然产生，而非数值硬拉。
+    </div>
+  </div>
+
+  <h2>三、最终节奏（8 种子均值）</h2>
+  <div class="card">
+    <div class="chart">
+      <div class="col"><em>91</em><i style="height:50%"></i><b>人仙</b></div>
+      <div class="col"><em>119</em><i style="height:66%"></i><b>地仙</b></div>
+      <div class="col"><em>127</em><i style="height:70%"></i><b>天仙</b></div>
+      <div class="col"><em>125</em><i style="height:69%"></i><b>玄仙</b></div>
+      <div class="col"><em>156</em><i style="height:86%"></i><b>金仙</b></div>
+      <div class="col"><em>181</em><i style="height:100%"></i><b>太乙</b></div>
+      <div class="col"><em>152</em><i style="height:84%"></i><b>大罗</b></div>
+      <div class="col"><em>118</em><i style="height:65%"></i><b>准圣</b></div>
+      <div class="col"><em>135</em><i style="height:75%"></i><b>混元</b></div>
+    </div>
+    <table>
+      <tr><th>对比项</th><th class="num">重构前</th><th class="num">重构后</th><th class="num">变化</th></tr>
+      <tr><td>凡界</td><td class="num">74 天/境</td><td class="num">68.6 天/境</td><td class="num">—</td></tr>
+      <tr><td>仙界</td><td class="num">74 天/境</td><td class="num">104.8 天/境</td><td class="num good">×1.53</td></tr>
+      <tr><td>混元（末境）</td><td class="num">—</td><td class="num">135 天</td><td class="num good">原为 8 天</td></tr>
+    </table>
+  </div>
+
+  <h2>四、过程中发现并修复的三个结构性空洞</h2>
+
+  <div class="warnbox">
+    <b>① 混元境只停留 8 天</b><br>
+    <code>should_keep_wudao()</code> 原逻辑「取下一境门槛，无下一境就 return False」⇒
+    <b>末境完全不悟道</b>，只剩快速修为。补 <code>LAW_FINAL_GATE = 34</code> 后：
+    <b class="good">8 天 → 135 天</b>。
+    <br><span style="color:var(--muted)">教训：凡遇到 <code>next_xxx is None</code> 的分支，先问「末态该做什么」，别默认什么都不做。</span>
+  </div>
+
+  <div class="warnbox">
+    <b>② 因果法则两阶触顶，后三阶白点</b><br>
+    因果给 <code>insight_rate</code>（顿悟概率），而打坐顿悟硬钳 15%、基础 5% + 气运 ~0.8%
+    ⇒ 点两阶即满。开出<b>第二处消费点</b>「法则顿悟」（上限取 0.36 &gt; 满阶的 0.35，全程有边际收益）。
+  </div>
+
+  <div class="warnbox">
+    <b>③ 事件感悟在长周期下必然崩盘</b><br>
+    初版按「下一阶需求的百分比」给 ⇒ 后期 6000 × 12% = 720 = <b>15 天产出</b>，一次探索顶半个月。
+    改为 <code>insight_hours</code>（挂<b>产出速率</b>而非需求）+ 每日硬闸 2 次；
+    感悟总预算 <b>989 ≈ 基准的 3.25%</b>，并写成测试守住上限。
+  </div>
+
+  <h2>五、校准史（踩坑记录）</h2>
+  <div class="card">
+    <table>
+      <tr><th>阶段</th><th class="num">仙界总时长</th><th class="num">对目标偏差</th><th>说明</th></tr>
+      <tr><td>初版（无终局门槛）</td><td class="num">1132 日</td><td class="num">−3.3%</td><td>达标</td></tr>
+      <tr><td>+ 法则顿悟</td><td class="num">1043 日</td><td class="num bad">−10.9%</td><td>随机惊喜加速了节奏</td></tr>
+      <tr><td>反解 <code>WUDAO_BASE</code>→1.75</td><td class="num">1212 日</td><td class="num">+3.6%</td><td>但大罗 235 日超目标区间上限</td></tr>
+      <tr><td><b>1.82 + 补终局门槛</b></td><td class="num"><b>1204 日</b></td><td class="num good"><b>+2.9%</b></td><td>σ=143 日，落在噪声内，停止精调</td></tr>
+    </table>
+    <div class="note">
+      <b>关键教训</b>：1.75→1.82 实测反而从 1212 天变成 1025 天（方向反常）。
+      查下来是<b>单种子模拟噪声 σ≈145 天，已盖过参数差异</b>——等于在噪声上过拟合。
+      改成 <b>8 种子取均值</b>后才校准成功。只有当「参数带来的差异 &gt; 标准差」时，该参数才在此精度上可调。
+    </div>
+  </div>
+
+  <h2>六、交付清单</h2>
+  <div class="card">
+    <table>
+      <tr><th>模块</th><th>内容</th></tr>
+      <tr><td><b>法则系统</b></td><td>八条 × 五阶（金攻/木血/水灵/火身/土防/空间神识/时间修炼/因果顿悟）；<code>wudao</code> 静悟、<code>laws</code> 面板、<code>law focus</code> 设专注</td></tr>
+      <tr><td><b>突破软门槛</b></td><td>未达标 −30pp（终局 −35pp），压到 5% 安全下限但<b>不禁突破</b>，可硬冲</td></tr>
+      <tr><td><b>仙阶门派</b></td><td>5 座：天枢剑宗/长生道宫（人仙起）、焚天殿/厚土门（地仙起）、太虚观（天仙起）。主修法则悟道 <b>+50%</b>、兼修 <b>+20%</b>；仙职 记名→真传→长老→首座→道主</td></tr>
+      <tr><td><b>仙凡两隔</b></td><td>飞升后凡界宗门停俸停贡献，但已授予的 buff 与师承<b>保留</b>（不吃亏）；仙门贡献与仙职独立累积，飞升不是「直接满级」</td></tr>
+      <tr><td><b>仙界专属事件</b></td><td>12 个（总数 15 → 27）：法则回响/悟道古石/道纹残篇/混沌未判（once 大额机缘）、仙人论道、仙门诏令、云外坊市、仙人争执、劫云预兆、虚空裂隙、混沌凶兽、瑶池蟠桃</td></tr>
+      <tr><td><b>法则顿悟</b></td><td>静悟时概率触发，额外给 4 时辰产出；由因果法则驱动（3% → 36%）</td></tr>
+    </table>
+  </div>
+
+  <h2>七、验证结果</h2>
+  <div class="okbox">
+    <ul>
+      <li><b>305 项测试全过</b>（原 262 + 新增 43），<b>零回归</b></li>
+      <li>仙界事件在仙界触发占比 <b>94%</b>，<code>once</code> 型各只触发一次</li>
+      <li>仙门悟道加速实测比值 <b>1.51</b>（设计值 1.50）</li>
+      <li>凡界 68.6 天/境 → 仙界 <b>104.8 天/境</b>（比值 1.53x）</li>
+      <li>存档<b>向前兼容</b>：剥离 <code>law</code> 系统与仙门字段的老档可正常读取，零法则进度直接可玩</li>
+    </ul>
+  </div>
+
+  <h2>八、遗留与后续</h2>
+  <div class="card">
+    <ul>
+      <li>仙界师承（仙门师长指点）尚未做——现仙门只给悟道加速与乘区</li>
+      <li>仙界专属秘境仅 2 处（瑶池仙园系列），可再扩</li>
+      <li>法则第五阶（主宰）在均衡路线下点不到，是留给长线玩家的白金追求，暂无专属内容</li>
+    </ul>
+  </div>
+
+  <footer>
+    文字修仙 · 第二十七批复盘 · 数值均来自 8 种子模拟实测，公式与校准史见 <code>xiuxian/config/laws.py</code><br>
+    本文档仅记录设计与调试过程，不构成任何投资建议
+  </footer>
+</div>
+</body>
+</html>

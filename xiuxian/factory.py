@@ -46,6 +46,7 @@ def default_systems() -> list[GameSystem]:
     from .systems.sect import SectSystem
     from .systems.skill import SkillSystem
     from .systems.tribulation import TribulationSystem
+    from .systems.law import LawSystem
 
     return [
         CultivationSystem(),
@@ -58,6 +59,7 @@ def default_systems() -> list[GameSystem]:
         CombatSystem(),
         DuelSystem(),          # 论道切磋：修为途径（与战斗/探索并列）
         TribulationSystem(),
+        LawSystem(),               # 法则：仙界第二成长轴（悟道 → 乘区 + 突破软门槛）
         SectSystem(),
         EstateSystem(),           # 地：洞府灵气
         AssetSystem(),            # 财：产业被动收入

@@ -234,6 +234,7 @@ class CultivationSystem(GameSystem):
             target = RealmRegistry.next_realm(p.realm_key)
             base = target.major_success if target else 0.2
         else:
+            target = None
             base = 0.93
 
         # 比例式修正：三维越高乘数越大，且永远不因数值膨胀而顶格（保留 [0.05, 0.98] 安全阀）。
@@ -261,6 +262,18 @@ class CultivationSystem(GameSystem):
             + total_bonus
             + compensation
         )
+        # 仙界法则软门槛：未达门槛则大幅拉低成功率。
+        # 只降不禁 —— 玩家仍可硬冲，符合 v2「失败温和化、不阻断」的一贯哲学（见 config/laws.py）。
+        law_sys = self.game.systems.get("law")
+        if law_sys is not None:
+            if is_major and target is not None:
+                penalty, _ = law_sys.gate_penalty(target.key)
+                rate -= penalty
+            elif not is_major:
+                # 末境（混元）圆满：走终局门槛。
+                # 没有这一条，末境就完全不受法则约束 —— 混元只剩快速修为、8 天收尾（第 27 批实测）。
+                penalty, _ = law_sys.final_gate_penalty()
+                rate -= penalty
         return max(0.05, min(0.98, rate))
 
     def breakthrough(self) -> list[str]:
@@ -323,6 +336,13 @@ class CultivationSystem(GameSystem):
 
         rate = self.success_rate(is_major, float(payload.get("bonus", 0.0)))
         logs.append(f"推演天机：成功率 {rate * 100:.1f}%")
+        # 法则软门槛提示：可解释性 —— 让玩家知道成功率被什么拖累、以及怎么补
+        if is_major:
+            law_sys = game.systems.get("law")
+            if law_sys is not None:
+                _, note = law_sys.gate_penalty(target_key)
+                if note:
+                    logs.append(f"※ {note}（wudao 静悟可补足）")
 
         p.spend_stamina(BREAKTHROUGH_STAMINA)
         success = game.rng.chance(rate)
@@ -494,6 +514,7 @@ class CultivationSystem(GameSystem):
         start_stamina = p.stamina
         start_key = (p.realm_key, p.stage)
         insights = 0
+        wudao_hours = 0.0          # 仙界：修为圆满后转为悟道累计的时辰
 
         def _now_h() -> float:
             return self.game.day * 24.0 + self.game.hour
@@ -502,6 +523,22 @@ class CultivationSystem(GameSystem):
             if target_h is not None and _now_h() >= target_h - 1e-9:
                 break
             if p.can_breakthrough():
+                # 仙界：修为圆满但法则未达突破门槛 → 转为悟道，挂机不空转。
+                # 这正是「仙界时间主要花在悟道上」的落地：卡境时也有事可做。
+                law_sys = self.game.systems.get("law")
+                if law_sys is not None and law_sys.should_keep_wudao():
+                    remaining = (target_h - _now_h()) if target_h is not None else 8.0
+                    hours = max(1.0, min(8.0, remaining))
+                    law_sys.auto_wudao(hours)
+                    wudao_hours += hours
+                    continue
+                # 冲关冷却中：闭关调息等待，否则时间不推进、玩家只能干等。
+                # （修为已满 + 法则达标 + 冷却未过 = 挂机会空转，必须推进时间）
+                if self.cooldown_left() > 0:
+                    remaining = (target_h - _now_h()) if target_h is not None else 8.0
+                    hours = max(1.0, min(8.0, remaining))
+                    self.rest(hours)
+                    continue
                 break                    # 修为圆满：停下，把突破交给玩家
             if p.stamina < 6 and not ignore_stamina:
                 remaining = (target_h - _now_h()) if target_h is not None else 8.0
@@ -528,6 +565,9 @@ class CultivationSystem(GameSystem):
             out.append("气息沉凝，修为并未寸进。")
         if insights:
             out.append(f"期间顿悟 {insights} 次，妙悟自生。")
+        if wudao_hours >= 12.0:
+            out.append(f"　修为圆满而法则未臻，转静悟法则 {wudao_hours / 24.0:.1f} 日"
+                       f"（laws 查看进度）")
         if not ignore_stamina:
             out.append(f"精力 {start_stamina:.0f} -> {p.stamina:.0f}（闭关耗神，恢复靠调息与跨日）")
         if (p.realm_key, p.stage) != start_key:

@@ -19,6 +19,7 @@ from xiuxian.config import recipes as recipe_config  # noqa: E402
 from xiuxian.config import arts as art_config  # noqa: E402
 from xiuxian.config import skills as skill_config  # noqa: E402
 from xiuxian.config import realms as realm_config  # noqa: E402
+from xiuxian.config import laws as lawcfg  # noqa: E402
 from xiuxian.config.arts import (  # noqa: E402
     EFFECT_TYPES, RANK_BUDGET, effective_value, get_art, level_of,
     slots_for_realm, validate_balance,
@@ -3010,3 +3011,527 @@ class TestV2Gameplay(unittest.TestCase):
         game = new_game(seed=513)
         out = game.travel("落云山脉")
         self.assertTrue(any("抵达" in ln and "凶险" not in ln for ln in out))
+
+
+class TestLawSystem(unittest.TestCase):
+    """仙界法则系统（第 27 批：双轴成长 + 突破软门槛）。
+
+    重点守住三条**结构性约束**，任一被破坏都会让仙界重构失去意义：
+      1. 法则走 attr_mul 乘区（与境界加区相乘，不被稀释）
+      2. 软门槛只降成功率、不禁止突破（不卡死玩家）
+      3. 悟道必须真实推进时间（否则退化成零成本刷感悟）
+    """
+
+    @staticmethod
+    def _cfg():
+        from xiuxian.config import laws as law_config
+        return law_config
+
+    def _immortal_game(self, seed=2026):
+        """造一个已飞升（人仙）的存档，避免跑完凡界 669 天。"""
+        game = new_game(seed=seed)
+        game.clock.disabled = True          # 加速：关闭现实时间闸门
+        p = game.player
+        p.realm_key = "human_immortal"
+        p.stage = 0
+        p.exp = 0.0
+        game.rebuild_bonuses()
+        return game
+
+    # ---------- 配置自检 ----------
+    def test_laws_declared(self):
+        cfg = self._cfg()
+        self.assertEqual(len(cfg.LAWS), 8)
+        self.assertEqual(cfg.LAW_MAX_STAGE, 5)
+        for law in cfg.LAWS:
+            self.assertIn(law.effect_type,
+                          ("attr_mul", "cultivate_speed", "insight_rate"))
+            if law.effect_type == "attr_mul":
+                self.assertTrue(law.effect_key)      # 属性类必须指明作用属性
+
+    def test_stage_cost_increasing(self):
+        """每阶成本严格递增：后期更贵，「浅尝多条」与「深挖一条」成本才可比。"""
+        costs = self._cfg().LAW_STAGE_COST
+        for i in range(1, len(costs)):
+            self.assertGreater(costs[i], costs[i - 1])
+
+    def test_gate_monotonic(self):
+        """门槛随境界严格递增：后期必须持续有瓶颈，不能出现倒挂。"""
+        from xiuxian.config.realms import ORDER
+        cfg = self._cfg()
+        prev = 0
+        for key in ORDER[ORDER.index("earth_immortal"):]:
+            gate = cfg.gate_of(key)
+            self.assertGreater(gate, prev, f"{key} 门槛未递增")
+            prev = gate
+
+    def test_gate_within_capacity(self):
+        """末档门槛必须小于总节点数 —— 否则玩家永远无法突破（卡死）。"""
+        cfg = self._cfg()
+        total = len(cfg.LAWS) * cfg.LAW_MAX_STAGE
+        for key, gate in cfg.LAW_GATE.items():
+            self.assertLess(gate, total, f"{key} 门槛 {gate} 超过总节点 {total}")
+
+    # ---------- 阶数推导 ----------
+    def test_stage_of(self):
+        cfg = self._cfg()
+        self.assertEqual(cfg.stage_of(0), 0)
+        self.assertEqual(cfg.stage_of(99), 0)
+        self.assertEqual(cfg.stage_of(cfg.LAW_STAGE_COST[0]), 1)
+        self.assertEqual(cfg.stage_of(sum(cfg.LAW_STAGE_COST[:2])), 2)
+        self.assertEqual(cfg.stage_of(cfg.LAW_FULL_COST), cfg.LAW_MAX_STAGE)
+
+    def test_total_stages(self):
+        cfg = self._cfg()
+        self.assertEqual(cfg.total_stages({}), 0)
+        self.assertEqual(cfg.total_stages({"metal": 100.0, "wood": 400.0}), 3)
+
+    def test_stage_name(self):
+        cfg = self._cfg()
+        self.assertEqual(cfg.stage_name(0), "未入门")
+        self.assertEqual(cfg.stage_name(1), cfg.LAW_STAGES[0])
+        self.assertEqual(cfg.stage_name(999), cfg.LAW_STAGES[-1])   # 越界钳制
+
+    # ---------- 凡界 / 仙界边界 ----------
+    def test_wudao_blocked_in_mortal_realm(self):
+        game = new_game(seed=1)
+        law = game.system("law")
+        out = law.wudao("metal", 4)
+        self.assertTrue(any("飞升" in ln for ln in out))
+        self.assertEqual(law.progress.get("metal", 0.0), 0.0)
+
+    def test_wudao_works_in_immortal_realm(self):
+        game = self._immortal_game()
+        law = game.system("law")
+        out = law.wudao("metal", 12)
+        self.assertGreater(law.progress.get("metal", 0.0), 0.0)
+        self.assertTrue(any("静悟" in ln for ln in out))
+
+    def test_wudao_rejects_unknown_law(self):
+        game = self._immortal_game()
+        law = game.system("law")
+        out = law.wudao("nonexistent", 4)
+        self.assertTrue(any("未知法则" in ln for ln in out))
+
+    # ---------- 乘区（结构性约束 1） ----------
+    def test_law_multiplier_applied(self):
+        """金之法则满阶 → 攻击 ×1.40（+40% 偏移，attr_mul 按偏移相加）。"""
+        game = self._immortal_game()
+        p = game.player
+        law = game.system("law")
+        before = p.atk
+        law.progress["metal"] = self._cfg().LAW_FULL_COST
+        game.rebuild_bonuses()
+        self.assertAlmostEqual(p.atk / before, 1.40, places=2)
+
+    def test_law_no_effect_in_mortal_realm(self):
+        """凡界不享受法则加成（法则为仙界专属）。"""
+        game = new_game(seed=2)
+        p = game.player
+        law = game.system("law")
+        before = p.atk
+        law.progress["metal"] = self._cfg().LAW_FULL_COST
+        game.rebuild_bonuses()
+        self.assertAlmostEqual(p.atk, before, places=6)
+
+    # ---------- 软门槛（结构性约束 2） ----------
+    def test_gate_penalty_met(self):
+        game = self._immortal_game()
+        law = game.system("law")
+        law.progress = {"metal": self._cfg().LAW_FULL_COST}     # 5 阶 ≥ 地仙门槛
+        penalty, note = law.gate_penalty("earth_immortal")
+        self.assertEqual(penalty, 0.0)
+        self.assertEqual(note, "")
+
+    def test_gate_penalty_unmet(self):
+        game = self._immortal_game()
+        law = game.system("law")
+        law.progress = {}
+        penalty, note = law.gate_penalty("earth_immortal")
+        self.assertAlmostEqual(penalty, 0.30, places=6)
+        self.assertIn("法则未臻", note)
+
+    def test_breakthrough_rate_pressed_to_floor(self):
+        """未达门槛 → 成功率压到 5% 安全下限：可硬冲，但不禁（不卡死）。"""
+        game = self._immortal_game()
+        p = game.player
+        p.stage = p.realm_def.stage_count - 1          # 人仙圆满 → 跨大境界
+        cult = game.system("cultivation")
+        self.assertAlmostEqual(cult.success_rate(True), 0.05, places=6)
+
+    def test_breakthrough_not_blocked_by_gate(self):
+        """软门槛不得阻断突破流程（只能降成功率）。
+
+        注意：金丹以上（仙界天然包含）突破会先被「渡劫」系统拦截，这是既有机制。
+        本测试只确保拦截原因来自渡劫、而非法则门槛 —— 法则永远不阻断。
+        """
+        game = self._immortal_game()
+        p = game.player
+        p.stage = p.realm_def.stage_count - 1
+        p.exp = p.exp_required()
+        p.stamina = 100.0
+        cult = game.system("cultivation")
+        out = cult.breakthrough()
+        joined = " ".join(out)
+        if "中断" in joined:
+            self.assertNotIn("法则", joined)     # 中断只能因渡劫，绝不能因法则
+        else:
+            self.assertTrue(any("推演天机" in ln for ln in out))
+
+    # ---------- 时间推进（结构性约束 3） ----------
+    def test_wudao_advances_time(self):
+        """悟道必须真实推进游戏时间 —— 防止「时间不走、感悟照涨」的白嫖。"""
+        game = self._immortal_game()
+        law = game.system("law")
+        before = game.day * 24.0 + game.hour
+        law.wudao("metal", 24, ignore_stamina=True)
+        after = game.day * 24.0 + game.hour
+        self.assertGreaterEqual(after - before, 23.0)
+
+    def test_wudao_idle_skips_time_budget(self):
+        """挂机悟道跳过时间预算闸门（与 game.advance_time 注释一致）。"""
+        game = self._immortal_game()
+        law = game.system("law")
+        before = game.day * 24.0 + game.hour
+        law.auto_wudao(24)
+        after = game.day * 24.0 + game.hour
+        self.assertGreaterEqual(after - before, 23.0)
+
+    # ---------- 挂机集成 ----------
+    def test_idle_turns_to_wudao(self):
+        """仙界修为圆满但法则不够 → 闭关自动转悟道（挂机不空转）。"""
+        game = self._immortal_game()
+        p = game.player
+        p.stage = p.realm_def.stage_count - 1
+        p.exp = p.exp_required()
+        law = game.system("law")
+        self.assertTrue(law.should_keep_wudao())
+        game.system("cultivation").idle(20, ignore_stamina=True)
+        self.assertGreater(self._cfg().total_stages(law.progress), 0)
+
+    def test_should_keep_wudao_false_when_gate_met(self):
+        """法则已达标则不再自动悟道（把突破决策交还玩家）。"""
+        game = self._immortal_game()
+        p = game.player
+        p.stage = p.realm_def.stage_count - 1
+        p.exp = p.exp_required()
+        law = game.system("law")
+        law.progress = {"metal": self._cfg().LAW_FULL_COST}
+        self.assertFalse(law.should_keep_wudao())
+
+    # ---------- 序列化 ----------
+    def test_serialization_roundtrip(self):
+        game = self._immortal_game()
+        law = game.system("law")
+        law.progress = {"metal": 400.0, "time": 100.0}
+        law.focus = "time"
+        from xiuxian.systems.law import LawSystem
+        law2 = LawSystem()
+        law2.bind(game)
+        law2.load_state(law.to_dict())
+        self.assertEqual(law2.progress, law.progress)
+        self.assertEqual(law2.focus, "time")
+
+    def test_load_state_filters_unknown(self):
+        """读档需过滤非法 key（老存档 / 被改过的档不应污染状态）。"""
+        game = self._immortal_game()
+        cfg = self._cfg()
+        law = game.system("law")
+        law.load_state({"progress": {"metal": 100.0, "nonexistent": 999.0},
+                        "focus": "bad"})
+        self.assertEqual(law.progress, {"metal": 100.0})
+        self.assertIn(law.focus, cfg.ORDER)
+
+
+# ============================================================================
+# 第 27 批：仙阶门派 + 仙界专属事件
+#
+# 这组测试守住四条结构性约束（改任何一条都会让仙界重构退化）：
+#   ① 仙凡两隔：飞升后凡界宗门停俸停贡献，但已授予的 buff 必须保留（不吃亏）
+#   ② 仙门悟道加速：主修 +50% / 兼修 +20% / 无关 0%，且不可自我加速（防正反馈）
+#   ③ 事件感悟防刷：insight_hours 受每日硬闸，且未飞升静默不结算
+#   ④ 终局门槛：混元圆满需 34 阶；末境必须继续悟道（否则混元 8 天潦草收尾）
+# ============================================================================
+class TestImmortalSect(unittest.TestCase):
+    """仙阶门派：入门、仙职、悟道加速、仙凡两隔。"""
+
+    def _immortal(self, seed=2026):
+        game = create_game(name="仙门测试", seed=seed)
+        game.clock.disabled = True
+        p = game.player
+        p.realm_key = "human_immortal"
+        p.spirit_stones = 1_000_000
+        game.rebuild_bonuses()
+        return game, p
+
+    def test_immortal_sects_registered(self):
+        from xiuxian.systems.sect import IMMORTAL_SECTS, SECTS
+        self.assertTrue(IMMORTAL_SECTS)
+        for key, s in IMMORTAL_SECTS.items():
+            self.assertEqual(s.tier, "immortal", f"{key} 应标记为仙门")
+            self.assertIn(s.main_law, lawcfg.BY_KEY, f"{key} 主修法则非法")
+            self.assertIn(s.minor_law, lawcfg.BY_KEY, f"{key} 兼修法则非法")
+            self.assertIn(key, SECTS)   # 仙门须并入总表，否则 sect join 找不到
+
+    def test_mortal_sect_rejected_after_ascension(self):
+        """飞升后不可再入凡界宗门（仙凡两隔）。"""
+        game, p = self._immortal()
+        sect = game.system("sect")
+        logs = sect.join("qingyun")
+        self.assertTrue(any("仙凡两隔" in x for x in logs))
+        self.assertIsNone(sect.sect_key)
+
+    def test_join_immortal_sect(self):
+        game, p = self._immortal()
+        sect = game.system("sect")
+        before = p.spirit_stones
+        logs = sect.join("tianshu")
+        self.assertEqual(sect.immortal_sect_key, "tianshu")
+        self.assertEqual(p.spirit_stones, before - 20000)
+        self.assertTrue(any("天枢剑宗" in x for x in logs))
+
+    def test_join_immortal_sect_requires_realm(self):
+        """未飞升不得入仙门。"""
+        game = create_game(seed=5)
+        game.clock.disabled = True
+        game.player.spirit_stones = 1_000_000
+        sect = game.system("sect")
+        logs = sect.join("tianshu")
+        self.assertTrue(any("收徒门槛" in x for x in logs))
+        self.assertIsNone(sect.immortal_sect_key)
+
+    def test_law_insight_speed_tiers(self):
+        game, _ = self._immortal()
+        sect = game.system("sect")
+        sect.join("tianshu")            # 主修金 / 兼修空间
+        self.assertAlmostEqual(sect.law_insight_speed("metal"), 0.50)
+        self.assertAlmostEqual(sect.law_insight_speed("space"), 0.20)
+        self.assertAlmostEqual(sect.law_insight_speed("wood"), 0.0)
+
+    def test_no_sect_no_speed(self):
+        game, _ = self._immortal()
+        sect = game.system("sect")
+        self.assertEqual(sect.law_insight_speed("metal"), 0.0)
+
+    def test_main_law_wudao_faster(self):
+        """主修法则悟道明显快于无关法则（同一时辰，比值应≈1.50）。"""
+        game, _ = self._immortal()
+        sect = game.system("sect")
+        law = game.system("law")
+        sect.join("tianshu")
+        law.wudao("metal", 8.0, ignore_stamina=True)
+        law.wudao("wood", 8.0, ignore_stamina=True)
+        ratio = law.progress["metal"] / max(1e-9, law.progress["wood"])
+        # 浮动区间 0.88~1.14 叠加，留足余量
+        self.assertGreater(ratio, 1.25)
+        self.assertLess(ratio, 1.80)
+
+    def test_severed_stops_mortal_stipend_but_keeps_buff(self):
+        """仙凡两隔：停俸停贡献，但已授予的 buff 保留。"""
+        game = create_game(seed=11)
+        game.clock.disabled = True
+        p = game.player
+        p.spirit_stones = 10000
+        sect = game.system("sect")
+        sect.join("qingyun")                       # 凡界：max_mp ×1.10
+        mp_before = p.attributes.value("max_mp")
+        self.assertTrue(sect.sect_key)
+
+        p.realm_key = "human_immortal"             # 飞升
+        self.assertTrue(sect.severed)
+        contrib = sect.contribution
+        game.drain_logs()
+        logs = game.advance_time(24)
+        # 凡界贡献必须停涨（灵石总量会被产业被动收入干扰，故不拿它做判据）
+        self.assertEqual(sect.contribution, contrib, "飞升后凡界贡献不应再涨")
+        self.assertFalse(any("青云宗发放俸禄" in x for x in logs),
+                         "飞升后凡界宗门不应再发俸禄")
+        # 已授予的 buff 必须保留（不吃亏）
+        self.assertGreaterEqual(p.attributes.value("max_mp"), mp_before)
+
+    def test_immortal_rank_grows_with_contribution(self):
+        game, _ = self._immortal()
+        sect = game.system("sect")
+        sect.join("tianshu")
+        self.assertEqual(sect.immortal_rank(), "记名")
+        sect.immortal_contribution = 3000
+        self.assertEqual(sect.immortal_rank(), "长老")
+        sect.immortal_contribution = 20000
+        self.assertEqual(sect.immortal_rank(), "道主")
+
+    def test_sect_state_roundtrip(self):
+        game, _ = self._immortal()
+        sect = game.system("sect")
+        sect.join("tianshu")
+        sect.immortal_contribution = 4321
+        data = sect.to_dict()
+        sect2 = game.system("sect")
+        sect2.load_state(data)
+        self.assertEqual(sect2.immortal_sect_key, "tianshu")
+        self.assertEqual(sect2.immortal_contribution, 4321)
+
+    def test_load_state_filters_bad_immortal_key(self):
+        game, _ = self._immortal()
+        sect = game.system("sect")
+        sect.load_state({"immortal_sect_key": "not_a_sect",
+                         "immortal_contribution": "99"})
+        self.assertIsNone(sect.immortal_sect_key)
+        self.assertEqual(sect.immortal_contribution, 99)
+
+
+class TestImmortalEvents(unittest.TestCase):
+    """仙界专属事件：存在性、条件、感悟防刷。"""
+
+    def _events(self):
+        from pathlib import Path
+        import json
+        path = Path(__file__).resolve().parents[1] / "data" / "events.json"
+        return json.loads(path.read_text(encoding="utf-8"))["events"]
+
+    def test_immortal_events_exist(self):
+        evs = self._events()
+        imm = [e for e in evs if e["id"].startswith("immortal_")]
+        self.assertGreaterEqual(len(imm), 10, "仙界专属事件不应少于 10 个")
+
+    def test_immortal_events_gated_by_realm(self):
+        evs = self._events()
+        for e in evs:
+            if not e["id"].startswith("immortal_"):
+                continue
+            mr = e.get("conditions", {}).get("min_realm")
+            self.assertIn(mr, realm_config.ORDER, f"{e['id']} min_realm 非法")
+            self.assertTrue(RealmRegistry.in_immortal_realm(mr),
+                            f"{e['id']} 门槛必须落在仙界")
+
+    def test_insight_budget_within_limit(self):
+        """事件感悟总预算须 ≲ 基准的 10%（仙界 1132 日 / 32 阶 → 30400 感悟）。
+
+        这是防「每次探索给固定比例感悟」被 1132 天体量放大到失控的硬校验。
+        """
+        evs = self._events()
+        hours = 0.0
+        for e in evs:
+            for c in e.get("choices", []):
+                for f in c.get("effects", []):
+                    if f["type"] == "insight_hours":
+                        hours += float(f["value"])
+        insight = hours * lawcfg.WUDAO_BASE      # 保守按基础产出估算
+        self.assertLess(insight, 30400 * 0.10,
+                        f"事件感悟预算 {insight:.0f} 超标（上限 {30400*0.1:.0f}）")
+
+    def test_insight_hours_effect(self):
+        game = create_game(seed=2026)
+        game.clock.disabled = True
+        game.player.realm_key = "human_immortal"
+        game.rebuild_bonuses()
+        law = game.system("law")
+        from xiuxian.core.effects import apply_effects
+        logs = apply_effects(game, [{"type": "insight_hours", "law": "metal",
+                                     "value": 12}])
+        self.assertTrue(logs)
+        self.assertGreater(law.progress["metal"], 0)
+
+    def test_insight_daily_limit(self):
+        """每日最多 INSIGHT_DAILY_LIMIT 次事件感悟（防刷硬闸）。"""
+        game = create_game(seed=2026)
+        game.clock.disabled = True
+        game.player.realm_key = "human_immortal"
+        game.rebuild_bonuses()
+        law = game.system("law")
+        from xiuxian.core.effects import apply_effects
+        limit = law.INSIGHT_DAILY_LIMIT
+        got = 0
+        for _ in range(limit + 3):
+            logs = apply_effects(game, [{"type": "insight_hours", "law": "metal",
+                                         "value": 12}])
+            if logs and "感悟" in logs[0]:
+                got += 1
+        self.assertEqual(got, limit)
+
+    def test_insight_silent_before_ascension(self):
+        """凡界玩家吃到仙界事件奖励应静默，不得凭空攒感悟。"""
+        game = create_game(seed=3)
+        from xiuxian.core.effects import apply_effects
+        logs = apply_effects(game, [{"type": "insight_hours", "value": 50}])
+        self.assertEqual(logs, [])
+        self.assertEqual(game.system("law").progress, {})
+
+
+class TestLawEpiphany(unittest.TestCase):
+    """法则顿悟：因果法则的第二处消费点 + 终局门槛。"""
+
+    def _immortal(self, seed=2026):
+        game = create_game(name="顿悟测试", seed=seed)
+        game.clock.disabled = True
+        p = game.player
+        p.realm_key = "human_immortal"
+        game.rebuild_bonuses()
+        return game, p
+
+    def test_epiphany_rate_scales_with_causality(self):
+        """因果阶数越高，法则顿悟率越高，且五阶不触顶（后三阶不白点）。"""
+        game, _ = self._immortal()
+        law = game.system("law")
+        rates = []
+        for st in range(lawcfg.LAW_MAX_STAGE + 1):
+            law.progress["causality"] = sum(lawcfg.LAW_STAGE_COST[:st])
+            game.rebuild_bonuses()
+            rates.append(law.law_insight_rate())
+        for a, b in zip(rates, rates[1:]):
+            self.assertGreaterEqual(b, a, "阶数提升后顿悟率不应下降")
+        # 关键回归点：初版上限 20% 会让因果两阶就触顶，后三阶白点
+        self.assertGreater(rates[4], rates[2] + 1e-9,
+                           "因果满阶仍须有边际收益（不得在 2 阶触顶）")
+        self.assertLessEqual(rates[-1], lawcfg.LAW_INSIGHT_MAX_RATE + 1e-9)
+
+    def test_final_gate_blocks_hunyuan_perfection(self):
+        """末境圆满前受终局门槛约束（软门槛，只降不禁）。"""
+        game, p = self._immortal()
+        law = game.system("law")
+        cult = game.system("cultivation")
+        p.realm_key = "hunyuan"
+        p.stage = 0
+        game.rebuild_bonuses()
+
+        penalty, note = law.final_gate_penalty()
+        self.assertGreater(penalty, 0)
+        self.assertIn("大道未圆", note)
+        low = cult.success_rate(False)
+
+        for k in lawcfg.ORDER:      # 堆到 34 阶
+            law.progress[k] = sum(lawcfg.LAW_STAGE_COST[:4])
+        law.progress["metal"] = sum(lawcfg.LAW_STAGE_COST[:5])
+        law.progress["wood"] = sum(lawcfg.LAW_STAGE_COST[:5])
+        game.rebuild_bonuses()
+        self.assertGreaterEqual(lawcfg.total_stages(law.progress),
+                                lawcfg.LAW_FINAL_GATE)
+        self.assertEqual(law.final_gate_penalty()[0], 0.0)
+        self.assertGreater(cult.success_rate(False), low)
+        self.assertGreaterEqual(cult.success_rate(False), 0.05, "只降不禁")
+
+    def test_final_gate_ignored_outside_last_realm(self):
+        """终局门槛只在末境生效，不得拖累凡界/非末境的小突破。"""
+        game, p = self._immortal()
+        law = game.system("law")
+        self.assertEqual(law.final_gate_penalty()[0], 0.0)   # 人仙，非末境
+
+        game2 = create_game(seed=8)
+        self.assertEqual(game2.system("law").final_gate_penalty()[0], 0.0)
+
+    def test_last_realm_keeps_wudaoing(self):
+        """末境未达终局门槛时，挂机仍须转悟道（否则混元只剩 8 天修为）。"""
+        game, p = self._immortal()
+        law = game.system("law")
+        p.realm_key = "hunyuan"
+        p.stage = 0
+        game.rebuild_bonuses()
+        self.assertEqual(law.target_gate(), lawcfg.LAW_FINAL_GATE)
+        # 修为圆满 + 法则未达标 → 应继续悟道
+        p.exp = p.exp_required()
+        self.assertTrue(law.should_keep_wudao())
+
+        for k in lawcfg.ORDER:
+            law.progress[k] = sum(lawcfg.LAW_STAGE_COST[:4])
+        law.progress["metal"] = sum(lawcfg.LAW_STAGE_COST[:5])
+        law.progress["wood"] = sum(lawcfg.LAW_STAGE_COST[:5])
+        self.assertFalse(law.should_keep_wudao(), "达标后不应再空转悟道")
