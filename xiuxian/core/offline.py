@@ -6,7 +6,7 @@
    的时长计算错误（旧存档的 `saved_at` 是本地时间字符串，只作兼容回退）。
 2. **修为沉淀到「待领池」pending_exp**：离线时长按速率算出修为后不直接塞进
    当前层（会被 add_exp 的需求上限截断而浪费），而是先进池子，玩家突破后
-   还能继续领。池子总量无上限。
+   还能继续领。池子总量无上限（不封顶、不折算）。
 3. **幂等**：结算成功后立刻把 last_settled_at 推进到本次结算时刻，并递增
    settled_count；重复调用时 elapsed 必然小于宽限期，不会再发一次。
 4. **边界**：首次登录无记录 / 时间回拨 / 异常偏移 / 超长离线，全部有明确处理。
@@ -31,12 +31,8 @@ OFFLINE_EXP_RATIO_PER_HOUR = 0.0100   # 离线修为 = 本层需求 × 1.0% / �
 GRACE_SECONDS = 60.0                  # 宽限期：小于 1 分钟的间隙不结算（防刷/防抖动）
 MIN_SETTLE_SECONDS = 60.0             # 最短结算间隔：低于此时长不产生收益
 MAX_OFFLINE_SECONDS = 365 * 24 * 3600.0   # 单次结算上限：365 天（防数据异常/篡改）
-# 待领池上限 = 当前境界本层需求的 100%（防离线攒修为跳级）；
-# 超出部分按 PENDING_OVERFLOW_RATIO 自动转化为灵石（30% 保值回收，不白丢）
-PENDING_CAP_RATIO = 1.0
-PENDING_OVERFLOW_RATIO = 0.30
-# 领取时若超过当前层需求，超出部分衰减为 30%（防止突破后「瞬间领爆下一层」）
-CLAIM_OVERFLOW_RATIO = 0.30
+# 待领池修为不设上限：离线攒下的修为完整沉淀在池中，玩家突破后可继续领取，
+# 不做任何封顶或溢出折算（原「溢出转灵石」设计已取消，从未真正给玩家发过灵石）。
 
 
 @dataclass
@@ -44,12 +40,11 @@ class OfflineState:
     """离线挂机状态（存档字段，见 to_dict / from_dict）。"""
 
     last_settled_at: float | None = None    # UTC epoch 秒；None = 首次登录，无记录
-    pending_exp: float = 0.0                # 待领修为池（上限 = 本层需求 100%）
+    pending_exp: float = 0.0                # 待领修为池（不设上限，突破后可继续领）
     total_offline_exp: float = 0.0          # 累计离线修为（统计/展示）
     settled_count: int = 0                  # 结算次数（幂等与审计）
     last_duration: float = 0.0              # 上次结算的有效时长（秒，展示用）
     anomaly: str = ""                       # 上次异常说明（回拨 / 超长截断 / 无记录）
-    overflow_converted: float = 0.0         # 累计溢出转灵石（防跳级回收统计）
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -59,7 +54,6 @@ class OfflineState:
             "settled_count": self.settled_count,
             "last_duration": round(self.last_duration, 2),
             "anomaly": self.anomaly,
-            "overflow_converted": round(self.overflow_converted, 2),
         }
 
     @classmethod
@@ -77,7 +71,6 @@ class OfflineState:
             settled_count=int(data.get("settled_count", 0) or 0),
             last_duration=float(data.get("last_duration", 0.0) or 0.0),
             anomaly=str(data.get("anomaly", "") or ""),
-            overflow_converted=float(data.get("overflow_converted", 0.0) or 0.0),
         )
 
 
@@ -134,9 +127,8 @@ def settle(state: OfflineState, need: float, now: float | None = None,
     无论是否产生收益，都会把 last_settled_at 推进到 now —— 这样重复调用时
     elapsed 归零，天然幂等；首次登录与异常场景同样完成初始化。
 
-    v2 防跳级：待领池上限 = 本层需求 × PENDING_CAP_RATIO，超出的部分按
-    PENDING_OVERFLOW_RATIO 自动转化为灵石（30% 保值回收）——离线攒修为
-    最多攒满一层，不浪费也跳不了级。
+    待领池不设上限：离线攒下的修为完整沉淀，玩家突破后继续 claim 领取，
+    不做任何封顶或溢出折算。
     """
     now = _now_utc() if now is None else now
     gain, duration, anomaly = compute_offline_gain(
@@ -148,12 +140,6 @@ def settle(state: OfflineState, need: float, now: float | None = None,
         state.total_offline_exp += gain
         state.settled_count += 1
         state.last_duration = duration
-    # 待领池上限（防跳级）：超出部分按 30% 转化为灵石
-    cap = max(0.0, need) * PENDING_CAP_RATIO
-    if state.pending_exp > cap:
-        overflow = state.pending_exp - cap
-        state.pending_exp = cap
-        state.overflow_converted += overflow * PENDING_OVERFLOW_RATIO
     if anomaly:
         state.anomaly = anomaly
     # 关键：推进结算基准时刻，保证幂等
@@ -165,19 +151,12 @@ def claim(state: OfflineState, add_exp_fn, amount: float | None = None) -> float
     """从待领池领取修为。返回实际到账数量（受 add_exp 的本层需求上限约束，余额留池）。
 
     这样离线攒下的修为不会因为「本层已满」被浪费：突破后还能继续领取。
-
-    v2：领取后若超过当前层需求，超出部分按 CLAIM_OVERFLOW_RATIO 衰减为 30%
-    （转化入灵石），防止突破后一次性把下一层领爆——离线收益只该是「辅助」，
-    不该直接填满一整层。
+    超出当前层需求的部分由 add_exp 截断、余额完整留在池中，不做任何折算或销毁。
     """
     if state.pending_exp <= 0:
         return 0.0
     want = state.pending_exp if amount is None else min(amount, state.pending_exp)
     got = float(add_exp_fn(want))
-    # 只扣除真正到账的量，余额继续留在池中
+    # 只扣除真正到账的量，余额继续留在池中（突破后接着领，不丢失、不折算）
     state.pending_exp = max(0.0, state.pending_exp - got)
-    # 超出当前层需求的部分（add_exp 截断掉的）衰减为 30% 转灵石
-    overflow = want - got
-    if overflow > 1e-9 and state.pending_exp <= 1e-9:
-        state.overflow_converted += overflow * CLAIM_OVERFLOW_RATIO
     return got

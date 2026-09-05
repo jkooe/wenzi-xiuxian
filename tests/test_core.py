@@ -2988,20 +2988,26 @@ class TestV2Gameplay(unittest.TestCase):
         m.buy("qi_gathering_pill", 3)                  # 大量买入推高价格
         self.assertGreater(m.buy_price("qi_gathering_pill"), before)
 
-    # ---------- 待领池溢出 ----------
-    def test_pending_pool_capped_and_converted(self):
+    # ---------- 待领池（修为不设上限，不封顶、不折算） ----------
+    def test_pending_pool_uncapped(self):
         from xiuxian.core.offline import OfflineState, settle
-        from xiuxian.core.offline import PENDING_CAP_RATIO, PENDING_OVERFLOW_RATIO
         st = OfflineState(last_settled_at=0.0)
-        # 24 小时离线：1.0%/时 × 24 = 24% 需求，低于 100% 上限，不触发转化
+        # 24 小时离线：1.0%/时 × 24 = 24% 需求
         gain, _, _ = settle(st, need=1000.0, now=24 * 3600.0)
         self.assertAlmostEqual(gain, 1000 * 0.0100 * (24 - 60/3600), delta=0.01)
-        self.assertLessEqual(st.pending_exp, 1000.0 * PENDING_CAP_RATIO)
-        # 超额模拟：直接塞满池再结算
-        st2 = OfflineState(last_settled_at=0.0, pending_exp=999.0)
-        settle(st2, need=1000.0, now=3600.0)
-        self.assertLessEqual(st2.pending_exp, 1000.0 * PENDING_CAP_RATIO)
-        self.assertGreater(st2.overflow_converted, 0.0)
+        # 超长离线（按上限 365 天结算）：待领池远超「一层需求」也不封顶、不折算
+        st2 = OfflineState(last_settled_at=0.0)
+        settle(st2, need=1000.0, now=400 * 24 * 3600.0)
+        self.assertGreater(st2.pending_exp, 1000.0, "待领池应可超过一层需求（不设上限）")
+
+    def test_claim_overflow_stays_in_pool(self):
+        """领取时本层已满，超出部分完整留池，不折算、不销毁。"""
+        from xiuxian.core.offline import OfflineState, claim
+        st = OfflineState(last_settled_at=0.0, pending_exp=3000.0)
+        # add_exp_fn 模拟本层只剩 1000 容量：到账 1000，其余留池
+        got = claim(st, lambda want: min(want, 1000.0))
+        self.assertEqual(got, 1000.0)
+        self.assertEqual(st.pending_exp, 2000.0, "超出部分应完整留池")
 
     # ---------- 凶险取消 ----------
     def test_locations_no_danger(self):
