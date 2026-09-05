@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import io
 import sys
@@ -249,6 +250,11 @@ function appendLog(logs, t){
 }
 async function sendCmd(line){
   if(!line) return;
+  // 阶段2a：命令优先走 WS；通道未就绪时回退 HTTP（兜底，保证可用性）
+  if(chatWs && chatWs.readyState === WebSocket.OPEN){
+    chatWs.send(JSON.stringify({cmd: line}));
+    return;
+  }
   try{
     const res = await api('/api/command', {method:'POST',
       body: JSON.stringify({line:line})});
@@ -334,7 +340,11 @@ function connectChat(){
   };
   chatWs.onmessage = function(ev){
     let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
-    if(m.type === 'chat'){
+    if(m.type === 'status'){
+      renderStatus(m.data); renderActions(m.actions);   // 阶段2a：状态由 WS 推送驱动
+    }else if(m.type === 'cmd_result'){
+      appendLog(m.logs, m.time);                         // 命令结果直接渲染，无需再 poll
+    }else if(m.type === 'chat'){
       const me = m.username === username ? ' me' : '';
       appendChat('<span class="who'+me+'">'+esc(m.username)+(m.realm?'（'+esc(m.realm)+'）':'')+
         '：</span>'+esc(m.text));
@@ -372,9 +382,11 @@ function enterGame(){ document.getElementById('login').classList.add('hidden');
   document.getElementById('who').textContent = username;
   document.getElementById('log').innerHTML = '';
   document.getElementById('chat').innerHTML = '';
-  poll(); loadPeers(); if(window._ti) clearInterval(window._ti);
-  window._ti = setInterval(function(){ poll(); loadPeers(); }, 4000);
-  connectChat();
+  poll(); loadPeers(); connectChat();
+  // 阶段2a：状态改由 WS 每 4s 推送驱动，去掉高频轮询；榜单降为 30s 兜底刷新
+  // （战力/境界变化不频繁，presence 广播已即时更新在线状态）。
+  if(window._ti) clearInterval(window._ti);
+  window._ti = setInterval(loadPeers, 30000);
 }
 function doLogout(){
   token=''; username=''; localStorage.removeItem('xx_token'); localStorage.removeItem('xx_user');
@@ -582,10 +594,15 @@ async def api_rank(username: str = Depends(get_username)):
 
 @app.websocket("/ws/chat")
 async def ws_chat(ws: WebSocket, token: str = ""):
-    """阶段1b：世界聊天 + 实时上下线广播。
+    """阶段2a：游戏通道（世界聊天 + 命令 + 状态推送三合一）。
 
     鉴权走 query 参数 token（浏览器 WebSocket 不支持自定义 header）。
-    连接即上线广播，断开即下线广播；收到文本消息广播给全部活连接。
+    消息：
+    - {"text": ...}：世界聊天，广播给全部活连接（阶段1b）
+    - {"cmd": ...}：执行命令，回 {"type": "cmd_result"}（阶段2a）
+    - 服务端每 4 秒推送 {"type": "status"}：接替原 4s HTTP 轮询的职责
+      （挂机结算 + 节流落库都在 status() 里，不能因去掉轮询而停摆）。
+    命令与状态调用含 threading.Lock 同步阻塞，一律进线程池，不卡事件循环。
     """
     username = db.get_username_by_token(token) if token else None
     if not username:
@@ -601,22 +618,48 @@ async def ws_chat(ws: WebSocket, token: str = ""):
              "realm": ensure_session(username).game.player.realm_name},
         )
 
+    async def push_status_loop():
+        while True:
+            await asyncio.sleep(4)
+            sess = SESSIONS.get(username)
+            if sess is None:
+                continue
+            try:
+                data, actions = await asyncio.to_thread(sess.status)
+                await ws.send_json({"type": "status", "data": data, "actions": actions})
+            except Exception:
+                return          # 连接已断，交回主循环退出
+
+    pusher = asyncio.create_task(push_status_loop())
     try:
         while True:
             data = await ws.receive_json()
-            text = str(data.get("text", "")).strip()[:200]
-            if not text:
-                continue
-            sess = world.WORLD.get(username)
-            realm = sess.game.player.realm_name if sess else ""
-            await world.broadcast({
-                "type": "chat", "username": username, "realm": realm, "text": text,
-            })
+            if "cmd" in data:
+                line = str(data.get("cmd", "")).strip()[:200]
+                sess = SESSIONS.get(username)
+                if sess is not None and line:
+                    try:
+                        logs = await asyncio.to_thread(sess.run, line)
+                        await ws.send_json({"type": "cmd_result", "logs": logs,
+                                            "time": sess.game.time_text()})
+                    except Exception as exc:
+                        await ws.send_json({"type": "cmd_result",
+                                            "logs": [f"命令执行失败：{exc}"], "time": ""})
+            else:
+                text = str(data.get("text", "")).strip()[:200]
+                if not text:
+                    continue
+                sess = world.WORLD.get(username)
+                realm = sess.game.player.realm_name if sess else ""
+                await world.broadcast({
+                    "type": "chat", "username": username, "realm": realm, "text": text,
+                })
     except WebSocketDisconnect:
         pass
     except Exception:
         pass
     finally:
+        pusher.cancel()
         last = world.ws_disconnect(username, ws)
         if last:
             await world.broadcast(
