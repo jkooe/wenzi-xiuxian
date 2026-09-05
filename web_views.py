@@ -12,6 +12,26 @@ from xiuxian.config import items as item_config
 from xiuxian.config.realms import RealmRegistry
 
 
+def combat_power(p) -> float:
+    """综合战力（战力榜口径，阶段1a 新增）。
+
+    现有 player_data 的 `power` 字段是「境界神通名」，不是战力，勿混用。
+    口径：战斗五维加权（攻/防/速/气血上限/灵力上限）。
+    属性本身随境界指数成长（每境约 ×4），基数已含境界量级信息，
+    不再额外乘境界系数，避免双重放大。权重可按体感调整（见方案文档待拍板项2）。
+    """
+    return combat_power_from_attrs(p.attributes)
+
+
+def combat_power_from_attrs(attrs) -> float:
+    """从 AttributeSet 计算综合战力——离线玩家从存档反序列化属性后复用同一口径。"""
+    return (attrs.value("atk") * 2.0
+            + attrs.value("def") * 1.5
+            + attrs.value("speed") * 1.0
+            + attrs.value("max_hp") * 0.4
+            + attrs.value("max_mp") * 0.2)
+
+
 def player_data(game) -> dict:
     """结构化角色数据（Web 面板渲染用；数值已 fmt_num 格式化，大数可读）。"""
     from xiuxian.core.numfmt import fmt_num

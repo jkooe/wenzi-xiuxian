@@ -30,6 +30,7 @@ from pydantic import BaseModel  # noqa: E402
 import account  # noqa: E402
 import db  # noqa: E402
 import web_views  # noqa: E402
+import world  # noqa: E402
 from xiuxian.factory import create_game  # noqa: E402
 from xiuxian.ui.cli import CLI  # noqa: E402
 
@@ -60,6 +61,16 @@ _PAGE = """<!DOCTYPE html>
   header h2{margin:0;font-size:18px;color:var(--gold);letter-spacing:2px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
     padding:14px;margin:12px 0;box-shadow:0 6px 22px rgba(0,0,0,.35)}
+  .peer{display:flex;justify-content:space-between;align-items:center;
+    padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+  .peer:last-child{border-bottom:none}
+  .peer .nm{color:var(--ink)} .peer .nm.me{color:var(--gold);font-weight:700}
+  .peer .dot{display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:#5a5f7a;margin-right:5px;vertical-align:1px}
+  .peer .dot.on{background:var(--green)}
+  .peer .sub{color:var(--muted);font-size:12px}
+  .peer .pw{color:var(--cyan);font-weight:600;white-space:nowrap}
+  .peer .rk{color:var(--gold);font-weight:700;margin-right:6px}
   input{width:100%;padding:11px 12px;margin:7px 0;border-radius:9px;border:1px solid var(--line);
     background:var(--panel2);color:var(--ink);font-size:15px;outline:none}
   input:focus{border-color:var(--gold)}
@@ -121,6 +132,10 @@ _PAGE = """<!DOCTYPE html>
       <button class="danger" id="btnLogout" style="margin-left:8px">离山</button></div>
   </header>
   <div id="statusCard" class="card">载入中…</div>
+  <div class="card">
+    <div class="lab"><span>同服修士</span><span class="sub" id="peerCount"></span></div>
+    <div id="peers"><div class="sub">载入中…</div></div>
+  </div>
   <div class="card">
     <div class="lab"><span>修行走势</span></div>
     <div id="log"></div>
@@ -228,6 +243,27 @@ async function poll(){
     renderStatus(j.data); renderActions(j.actions);
   }catch(e){}
 }
+async function loadPeers(){
+  try{
+    const res = await api('/api/rank');
+    const j = await res.json();
+    const rank = j.rank || [];
+    const box = document.getElementById('peers');
+    const cnt = document.getElementById('peerCount');
+    const onlineN = rank.filter(function(x){return x.online;}).length;
+    cnt.textContent = '在线 '+onlineN+' / 共 '+rank.length+' 人';
+    let h = '';
+    rank.forEach(function(x, i){
+      h += '<div class="peer">'
+        + '<span class="nm'+(x.username===username?' me':'')+'">'
+        + '<span class="dot'+(x.online?' on':'')+'"></span>'
+        + '<span class="rk">'+(i+1)+'</span>'+x.username+'</span>'
+        + '<span class="sub">'+x.realm+'</span>'
+        + '<span class="pw">战力 '+x.power+'</span></div>';
+    });
+    box.innerHTML = h || '<div class="sub">暂无修士</div>';
+  }catch(e){}
+}
 async function openCatalog(){
   try{
     const res = await api('/api/catalog');
@@ -252,8 +288,8 @@ function enterGame(){ document.getElementById('login').classList.add('hidden');
   document.getElementById('game').classList.remove('hidden');
   document.getElementById('who').textContent = username;
   document.getElementById('log').innerHTML = '';
-  poll(); if(window._ti) clearInterval(window._ti);
-  window._ti = setInterval(poll, 4000);
+  poll(); loadPeers(); if(window._ti) clearInterval(window._ti);
+  window._ti = setInterval(function(){ poll(); loadPeers(); }, 4000);
 }
 function doLogout(){
   token=''; username=''; localStorage.removeItem('xx_token'); localStorage.removeItem('xx_user');
@@ -366,6 +402,7 @@ def ensure_session(username: str) -> MpSession:
         db.save_game(game, username, note="new")
     s = MpSession(username, game)
     SESSIONS[username] = s
+    world.register(username, s)          # 阶段1a：在服会话进世界状态（在线列表/战力榜）
     return s
 
 
@@ -441,6 +478,20 @@ async def api_catalog(username: str = Depends(get_username)):
     return {"catalog": web_views.catalog_data(s.game)}
 
 
+@app.get("/api/online")
+async def api_online(username: str = Depends(get_username)):
+    # 阶段1a：同服在线列表（按战力倒序）
+    ensure_session(username)
+    return {"online": world.online_list()}
+
+
+@app.get("/api/rank")
+async def api_rank(username: str = Depends(get_username)):
+    # 阶段1a：全服战力榜（在线 + 离线，按综合战力倒序）
+    ensure_session(username)
+    return {"rank": world.rank_board()}
+
+
 @app.post("/api/save")
 async def api_save(username: str = Depends(get_username)):
     ensure_session(username).save()
@@ -451,6 +502,7 @@ async def api_save(username: str = Depends(get_username)):
 async def api_logout(username: str = Depends(get_username)):
     db.set_token(username, account.new_token())     # 旧 token 失效
     SESSIONS.pop(username, None)
+    world.unregister(username)                      # 阶段1a：从世界状态注销
     return {"ok": True}
 
 

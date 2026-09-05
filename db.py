@@ -164,6 +164,22 @@ def load_payload(username: str) -> dict[str, Any] | None:
     return json.loads(row["data"]) if row else None
 
 
+def list_all_saves() -> list[tuple[str, dict[str, Any]]]:
+    """全服存档（username + 完整 payload）。战力榜要覆盖离线玩家。"""
+    conn = _connect()
+    try:
+        rows = conn.execute("SELECT username, data FROM saves").fetchall()
+    finally:
+        conn.close()
+    out = []
+    for row in rows:
+        try:
+            out.append((row["username"], json.loads(row["data"])))
+        except json.JSONDecodeError:
+            continue        # 坏档跳过，不拖累榜单
+    return out
+
+
 def load_game(username: str) -> Game:
     """读档：复用 Game.from_dict + 离线结算 + claim，并写回（幂等）。
 

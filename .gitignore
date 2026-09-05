@@ -10,3 +10,7 @@ saves/*.json
 .pytest_cache/
 # 本地数据工作区
 data/_tmp/
+# 运行时数据库（联网版存档，不入库）
+data/*.db
+data/*.db-wal
+data/*.db-shm

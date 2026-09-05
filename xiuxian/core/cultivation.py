@@ -161,14 +161,11 @@ class CultivationSystem(GameSystem):
             p.spend_stamina(real_hours * STAMINA_PER_HOUR)
 
         rng = self.game.rng
+        # 先决定产出与顿悟（保持随机源消耗顺序），待时间真正推进后再落账
         gain = 0.0
         for _ in range(int(round(real_hours))):
             gain += self._hourly_gain(p, rng)
             p.heal_mp(p.max_mp * 0.05)      # 吐纳回气
-
-        real = p.add_exp(gain)
-        logs = [f"吐纳 {real_hours:.0f} 小时，修为 +{fmt_num(real)}" if real >= 0.5
-                else f"吐纳 {real_hours:.0f} 小时，修为本已圆满，点滴不进"]
 
         # 顿悟：气运触发（已至绝巅时 exp_required 为 inf，跳过，防 inf 污染修为）。
         # 每 4 时辰判定一次：顿悟收益与操作粒度无关——cultivate(24) 一次长坐
@@ -177,6 +174,7 @@ class CultivationSystem(GameSystem):
         # v2：概率钳制上限 15%（clamp(5% + 气运/1000 + 加成, 2%, 15%)）
         insight_bonus = self.game.bonuses.value("insight_rate")
         rolls = max(1, int(round(real_hours / 4.0)))
+        insight_gains: list[float] = []
         for _ in range(rolls):
             rate = min(INSIGHT_MAX_RATE,
                        INSIGHT_BASE_RATE + p.luck / 1000.0 + insight_bonus)
@@ -184,9 +182,38 @@ class CultivationSystem(GameSystem):
                 need = p.exp_required()
                 if need != float("inf"):
                     ratio = 0.12 if RealmRegistry.in_immortal_realm(p.realm_key) else 0.08
-                    bonus = need * ratio
-                    p.add_exp(bonus)
-                    logs.append("心中豁然开朗，似有所悟！额外修为 +%s" % fmt_num(bonus))
+                    insight_gains.append(need * ratio)
+
+        # 推进时间，按「实际推进时辰」发放修为——预算闸门截断时防
+        # 「时间没走、修为照涨」的零成本刷修为（与法则系统同款坑，
+        # 见 law.wudao 注释，务必保留此折算）。
+        # 闭关挂机期间（_idle_mode）旁路预算闸门：见 game.advance_time 文档。
+        start_h = self.game.day * 24.0 + self.game.hour
+        # 主动打坐期间暂停被动周天（advance_time 会广播 hour_passed，防止双倍叠加）
+        self._active_meditating = True
+        try:
+            advance_logs = self.game.advance_time(real_hours,
+                                                  bypass_budget=self._idle_mode)
+        finally:
+            self._active_meditating = False
+        advanced = (self.game.day * 24.0 + self.game.hour) - start_h
+        if advanced <= 0:
+            # 时间之力耗尽：退回精力，不发修为（不白送收益）
+            if not ignore_stamina:
+                p.stamina = min(100.0, p.stamina + real_hours * STAMINA_PER_HOUR)
+            return advance_logs
+        if advanced < real_hours - 1e-9:
+            scale = advanced / real_hours
+            gain *= scale
+            insight_gains = [g * scale for g in insight_gains]
+            real_hours = advanced
+
+        real = p.add_exp(gain)
+        logs = [f"吐纳 {real_hours:.0f} 小时，修为 +{fmt_num(real)}" if real >= 0.5
+                else f"吐纳 {real_hours:.0f} 小时，修为本已圆满，点滴不进"]
+        for bonus in insight_gains:
+            p.add_exp(bonus)
+            logs.append("心中豁然开朗，似有所悟！额外修为 +%s" % fmt_num(bonus))
 
         # 广播「练功」：功法系统据此累积熟练度（赶路、休息、斗法不涨）
         #   handler 往 payload["logs"] 里塞提示，由这里统一收回，
@@ -194,12 +221,7 @@ class CultivationSystem(GameSystem):
         practiced = self.game.bus.emit(TOPIC_PRACTICE, {"hours": real_hours, "logs": []})
         logs.extend(practiced.get("logs", []))
 
-        # 主动打坐期间暂停被动周天（advance_time 会广播 hour_passed，防止双倍叠加）
-        self._active_meditating = True
-        try:
-            logs.extend(self.game.advance_time(real_hours))
-        finally:
-            self._active_meditating = False
+        logs.extend(advance_logs)
         if p.can_breakthrough():
             logs.append(f">>> 修为已满，可冲击【{p.next_target_name()}】（breakthrough）")
         return logs
@@ -519,36 +541,48 @@ class CultivationSystem(GameSystem):
         def _now_h() -> float:
             return self.game.day * 24.0 + self.game.hour
 
-        while not self.game.over:
-            if target_h is not None and _now_h() >= target_h - 1e-9:
-                break
-            if p.can_breakthrough():
-                # 仙界：修为圆满但法则未达突破门槛 → 转为悟道，挂机不空转。
-                # 这正是「仙界时间主要花在悟道上」的落地：卡境时也有事可做。
-                law_sys = self.game.systems.get("law")
-                if law_sys is not None and law_sys.should_keep_wudao():
+        stalled = False            # 时间零推进：防死循环（预算耗尽时 rest/wudao 不推进时间）
+        # 闭关挂机旁路时间预算（_idle_mode）：见 game.advance_time 文档——
+        # 闭关/离线结算等非玩家主动逐条操作的时间推进不受预算限制。
+        self._idle_mode = True
+        try:
+            while not self.game.over:
+                if target_h is not None and _now_h() >= target_h - 1e-9:
+                    break
+                prev_h = _now_h()
+                if p.can_breakthrough():
+                    # 仙界：修为圆满但法则未达突破门槛 → 转为悟道，挂机不空转。
+                    # 这正是「仙界时间主要花在悟道上」的落地：卡境时也有事可做。
+                    law_sys = self.game.systems.get("law")
+                    if law_sys is not None and law_sys.should_keep_wudao():
+                        remaining = (target_h - _now_h()) if target_h is not None else 8.0
+                        hours = max(1.0, min(8.0, remaining))
+                        law_sys.auto_wudao(hours)
+                        wudao_hours += hours
+                    # 冲关冷却中：闭关调息等待，否则时间不推进、玩家只能干等。
+                    # （修为已满 + 法则达标 + 冷却未过 = 挂机会空转，必须推进时间）
+                    elif self.cooldown_left() > 0:
+                        remaining = (target_h - _now_h()) if target_h is not None else 8.0
+                        hours = max(1.0, min(8.0, remaining))
+                        self.rest(hours)
+                    else:
+                        break                    # 修为圆满：停下，把突破交给玩家
+                elif p.stamina < 6 and not ignore_stamina:
                     remaining = (target_h - _now_h()) if target_h is not None else 8.0
-                    hours = max(1.0, min(8.0, remaining))
-                    law_sys.auto_wudao(hours)
-                    wudao_hours += hours
-                    continue
-                # 冲关冷却中：闭关调息等待，否则时间不推进、玩家只能干等。
-                # （修为已满 + 法则达标 + 冷却未过 = 挂机会空转，必须推进时间）
-                if self.cooldown_left() > 0:
-                    remaining = (target_h - _now_h()) if target_h is not None else 8.0
-                    hours = max(1.0, min(8.0, remaining))
-                    self.rest(hours)
-                    continue
-                break                    # 修为圆满：停下，把突破交给玩家
-            if p.stamina < 6 and not ignore_stamina:
-                remaining = (target_h - _now_h()) if target_h is not None else 8.0
-                self.rest(max(1.0, min(8.0, remaining)))   # 休息时长也按剩余目标截断
-            else:
-                remaining = (target_h - _now_h()) if target_h is not None else 24.0
-                hours = max(1.0, min(24.0, remaining))
-                # 主动闭关受精力预算约束；挂机结算（ignore_stamina）免精力
-                inner = self.cultivate(hours, ignore_stamina=ignore_stamina)
-                insights += sum(1 for ln in inner if "豁然开朗" in ln)
+                    self.rest(max(1.0, min(8.0, remaining)))   # 休息时长也按剩余目标截断
+                else:
+                    remaining = (target_h - _now_h()) if target_h is not None else 24.0
+                    hours = max(1.0, min(24.0, remaining))
+                    # 主动闭关受精力预算约束；挂机结算（ignore_stamina）免精力
+                    inner = self.cultivate(hours, ignore_stamina=ignore_stamina)
+                    insights += sum(1 for ln in inner if "豁然开朗" in ln)
+
+                if _now_h() - prev_h <= 1e-9:
+                    # 时间零推进（预算耗尽等）：再循环也不会前进，立即停手防死循环
+                    stalled = True
+                    break
+        finally:
+            self._idle_mode = False
 
         days_spent = (_now_h() - start_h) / 24.0
         gain = p.exp - start_exp
@@ -559,6 +593,8 @@ class CultivationSystem(GameSystem):
         else:
             head = "=== 闭关不足一日 ==="
         out = [head]
+        if stalled:
+            out.append("时间之力暂时耗尽，闭关被迫中止。")
         if gain >= 0.5:
             out.append(f"静心吐纳，修为 +{fmt_num(gain)}（{fmt_num(start_exp)} -> {fmt_num(p.exp)}）")
         else:

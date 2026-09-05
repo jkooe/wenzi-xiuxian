@@ -2440,7 +2440,9 @@ class TestAuditFixes(unittest.TestCase):
         src = open("web_server.py", encoding="utf-8").read()
         self.assertIn("self._fail(exc)", src)              # 异常兜底
         self.assertIn("SESSIONS: dict[str, GameSession]", src)   # 会话隔离
-        self.assertIn('"cmd": f"choose {i}"', src)         # choose 按钮
+        # 行动按钮逻辑已随阶段0 抽到 web_views.py（单机/联网共用口径）
+        views = open("web_views.py", encoding="utf-8").read()
+        self.assertIn('"cmd": f"choose {i}"', views)       # choose 按钮
 
 
 class TestOfflineEngine(unittest.TestCase):
