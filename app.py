@@ -23,7 +23,14 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 import uvicorn  # noqa: E402
-from fastapi import Depends, FastAPI, HTTPException, Request  # noqa: E402
+from fastapi import (  # noqa: E402
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import HTMLResponse  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
@@ -94,6 +101,12 @@ _PAGE = """<!DOCTYPE html>
   #log{background:#0a0c16;border:1px solid var(--line);border-radius:10px;
     padding:10px;height:140px;overflow:auto;font-size:13px;line-height:1.6;color:#c9cef0}
   #log div{border-bottom:1px dotted #1c2138;padding:1px 0}
+  #chat{background:#0a0c16;border:1px solid var(--line);border-radius:10px;
+    padding:10px;height:160px;overflow:auto;font-size:13px;line-height:1.7;color:#c9cef0}
+  #chat div{padding:1px 0}
+  #chat .sys{color:var(--muted);font-size:12px}
+  #chat .who{color:var(--gold);margin-right:6px}
+  #chat .who.me{color:var(--cyan)}
   .act-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
   .act-grid button{text-align:left}
   .act-grid button.primary{background:linear-gradient(90deg,#5a3fae,#7a55d8);color:#fff}
@@ -139,6 +152,14 @@ _PAGE = """<!DOCTYPE html>
   <div class="card">
     <div class="lab"><span>修行走势</span></div>
     <div id="log"></div>
+  </div>
+  <div class="card">
+    <div class="lab"><span>世界聊天</span><span class="sub" id="chatState"></span></div>
+    <div id="chat"></div>
+    <div class="row" style="margin-top:8px">
+      <input id="chatInput" placeholder="喊话同门修士…" maxlength="200">
+      <button class="primary" id="btnChat">传话</button>
+    </div>
   </div>
   <div class="card">
     <div class="lab"><span>施为</span><span class="sub">点按或输指令</span></div>
@@ -284,16 +305,81 @@ function closeCatalog(){ document.getElementById('catalogModal').classList.add('
 
 function showLogin(){ document.getElementById('login').classList.remove('hidden');
   document.getElementById('game').classList.add('hidden'); }
+
+// ---------- 阶段1b：世界聊天（WebSocket） ----------
+let chatWs = null;
+let chatRetry = 0;
+function wsUrl(){
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  return proto+'://'+location.host+'/ws/chat?token='+encodeURIComponent(token);
+}
+function appendChat(html, cls){
+  const el = document.getElementById('chat');
+  const d = document.createElement('div');
+  if(cls) d.className = cls;
+  d.innerHTML = html;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
+}
+function connectChat(){
+  if(!token) return;
+  try{ chatWs = new WebSocket(wsUrl()); }catch(e){ return; }
+  chatWs.onopen = function(){
+    chatRetry = 0;
+    document.getElementById('chatState').textContent = '已连通';
+  };
+  chatWs.onmessage = function(ev){
+    let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
+    if(m.type === 'chat'){
+      const me = m.username === username ? ' me' : '';
+      appendChat('<span class="who'+me+'">'+esc(m.username)+(m.realm?'（'+esc(m.realm)+'）':'')+
+        '：</span>'+esc(m.text));
+    }else if(m.type === 'presence'){
+      appendChat('<span class="sys">'+esc(m.username)+(m.online?' 上线了':' 离线了')+'</span>', 'sys');
+      loadPeers();          // 实时刷新同服修士面板（在线状态即时更新）
+    }
+  };
+  chatWs.onclose = function(){
+    document.getElementById('chatState').textContent = '已断开';
+    if(token && chatRetry < 8){
+      chatRetry++;
+      setTimeout(connectChat, Math.min(2000 * chatRetry, 10000));   // 断线重连
+    }
+  };
+  chatWs.onerror = function(){ try{ chatWs.close(); }catch(e){} };
+}
+function disconnectChat(){
+  if(chatWs){ const ws = chatWs; chatWs = null; try{ ws.onclose = null; ws.close(); }catch(e){} }
+}
+function sendChat(){
+  const inp = document.getElementById('chatInput');
+  const text = inp.value.trim();
+  if(!text) return;
+  if(chatWs && chatWs.readyState === WebSocket.OPEN){
+    chatWs.send(JSON.stringify({text:text}));
+    inp.value = '';
+  }else{
+    appendChat('<span class="sys">传话失败：通道未连通，稍候重试</span>', 'sys');
+  }
+}
+
 function enterGame(){ document.getElementById('login').classList.add('hidden');
   document.getElementById('game').classList.remove('hidden');
   document.getElementById('who').textContent = username;
   document.getElementById('log').innerHTML = '';
+  document.getElementById('chat').innerHTML = '';
   poll(); loadPeers(); if(window._ti) clearInterval(window._ti);
   window._ti = setInterval(function(){ poll(); loadPeers(); }, 4000);
+  connectChat();
 }
 function doLogout(){
   token=''; username=''; localStorage.removeItem('xx_token'); localStorage.removeItem('xx_user');
   if(window._ti) clearInterval(window._ti);
+  disconnectChat();
   showLogin();
 }
 async function doLogin(){
@@ -326,6 +412,8 @@ document.getElementById('btnLogin').onclick = doLogin;
 document.getElementById('btnReg').onclick = doReg;
 document.getElementById('btnCmd').onclick = function(){ const c=document.getElementById('cmd'); sendCmd(c.value); c.value=''; };
 document.getElementById('cmd').addEventListener('keydown', function(e){ if(e.key==='Enter'){ sendCmd(this.value); this.value=''; }});
+document.getElementById('btnChat').onclick = sendChat;
+document.getElementById('chatInput').addEventListener('keydown', function(e){ if(e.key==='Enter'){ sendChat(); }});
 document.getElementById('btnLogout').onclick = async function(){
   try{ await api('/api/logout', {method:'POST'}); }catch(e){}
   doLogout();
@@ -490,6 +578,50 @@ async def api_rank(username: str = Depends(get_username)):
     # 阶段1a：全服战力榜（在线 + 离线，按综合战力倒序）
     ensure_session(username)
     return {"rank": world.rank_board()}
+
+
+@app.websocket("/ws/chat")
+async def ws_chat(ws: WebSocket, token: str = ""):
+    """阶段1b：世界聊天 + 实时上下线广播。
+
+    鉴权走 query 参数 token（浏览器 WebSocket 不支持自定义 header）。
+    连接即上线广播，断开即下线广播；收到文本消息广播给全部活连接。
+    """
+    username = db.get_username_by_token(token) if token else None
+    if not username:
+        await ws.close(code=4401)
+        return
+    await ws.accept()
+    ensure_session(username)
+
+    first = world.ws_connect(username, ws)
+    if first:
+        await world.broadcast(
+            {"type": "presence", "username": username, "online": True,
+             "realm": ensure_session(username).game.player.realm_name},
+        )
+
+    try:
+        while True:
+            data = await ws.receive_json()
+            text = str(data.get("text", "")).strip()[:200]
+            if not text:
+                continue
+            sess = world.WORLD.get(username)
+            realm = sess.game.player.realm_name if sess else ""
+            await world.broadcast({
+                "type": "chat", "username": username, "realm": realm, "text": text,
+            })
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        last = world.ws_disconnect(username, ws)
+        if last:
+            await world.broadcast(
+                {"type": "presence", "username": username, "online": False},
+            )
 
 
 @app.post("/api/save")
